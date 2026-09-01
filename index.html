@@ -1,0 +1,1650 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>파트너센터 인사이트</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f7f7f4; --surface:#fcfcfb; --surface-2:#f1f0ec;
+  --ink:#151512; --ink-2:#52514e; --muted:#898781;
+  --line:#e1e0d9; --hairline:rgba(11,11,11,.10); --baseline:#c3c2b7;
+  --accent:#2a78d6; --accent-soft:rgba(42,120,214,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7;
+  --good:#006300; --good-chip:rgba(12,163,12,.12);
+  --warn:#9a6a00; --warn-chip:rgba(250,178,25,.16);
+  --crit:#d03b3b; --crit-chip:rgba(208,59,59,.10);
+  --chip:#ecebe6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+    --ink:#f4f4ef; --ink-2:#c3c2b7; --muted:#898781;
+    --line:#2c2c2a; --hairline:rgba(255,255,255,.10); --baseline:#383835;
+    --accent:#3987e5; --accent-soft:rgba(57,135,229,.16);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --good:#0ca30c; --good-chip:rgba(12,163,12,.16);
+    --warn:#fab219; --warn-chip:rgba(250,178,25,.14);
+    --crit:#e66767; --crit-chip:rgba(208,59,59,.18);
+    --chip:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+  --ink:#f4f4ef; --ink-2:#c3c2b7; --muted:#898781;
+  --line:#2c2c2a; --hairline:rgba(255,255,255,.10); --baseline:#383835;
+  --accent:#3987e5; --accent-soft:rgba(57,135,229,.16);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+  --good:#0ca30c; --good-chip:rgba(12,163,12,.16);
+  --warn:#fab219; --warn-chip:rgba(250,178,25,.14);
+  --crit:#e66767; --crit-chip:rgba(208,59,59,.18);
+  --chip:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); margin:0;
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
+  font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1060px; margin:0 auto; padding:28px 20px 80px}
+a{color:var(--accent)}
+
+.hd{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:18px}
+.hd h1{font-size:21px; font-weight:700; letter-spacing:-.01em; margin:0}
+.hd .sub{color:var(--muted); font-size:13.5px}
+.hd .sub b{color:var(--ink-2); font-weight:600}
+
+.card{background:var(--surface); border:1px solid var(--hairline); border-radius:10px; padding:18px 20px}
+.card h2{font-size:14px; font-weight:600; margin:0 0 4px; letter-spacing:-.01em}
+.card h2 .chip{vertical-align:1px}
+.card .desc{color:var(--muted); font-size:13px; margin:0 0 14px}
+
+#inCard summary{cursor:pointer; font-weight:600; font-size:14px; list-style:none; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+#inCard summary::-webkit-details-marker{display:none}
+#inCard summary::before{content:"▸"; color:var(--muted); font-size:11px; transition:transform .15s}
+#inCard[open] summary::before{transform:rotate(90deg)}
+#inCard summary .hint{font-weight:400; color:var(--muted); font-size:13px}
+.inBody{margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:18px}
+@media (max-width:820px){.inBody{grid-template-columns:1fr}}
+.inCol h3{font-size:13px; font-weight:600; margin:0 0 3px}
+.inCol .desc{color:var(--muted); font-size:12.5px; margin:0 0 10px}
+textarea{
+  width:100%; min-height:120px; resize:vertical;
+  background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--line); border-radius:8px; padding:12px;
+  font:inherit; font-size:13px; line-height:1.5;
+}
+textarea:focus-visible, input:focus-visible, button:focus-visible, .tab:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px}
+input[type=date]{
+  background:var(--surface-2); color:var(--ink); border:1px solid var(--line);
+  border-radius:8px; padding:8px 10px; font:inherit; font-size:13.5px;
+}
+button{
+  font:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
+  border-radius:8px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--ink); padding:8px 14px;
+}
+button:hover{border-color:var(--baseline)}
+button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+button.primary:hover{filter:brightness(1.06)}
+button.danger{color:var(--crit)}
+.filebtn{position:relative; overflow:hidden; display:inline-block}
+.filebtn input{position:absolute; inset:0; opacity:0; cursor:pointer}
+.note{color:var(--muted); font-size:13px}
+.msg{font-size:13px; color:var(--good); font-weight:500; min-height:1.2em}
+.msg.err{color:var(--crit)}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:18px 0}
+.tile{background:var(--surface); border:1px solid var(--hairline); border-radius:10px; padding:14px 16px 12px}
+.tile .lb{font-size:13px; color:var(--muted); margin-bottom:2px}
+.tile .v{font-size:24px; font-weight:600; letter-spacing:-.015em; line-height:1.25; white-space:nowrap}
+.tile .v small{font-size:14px; font-weight:500; color:var(--ink-2)}
+.tile .d{font-size:13px; margin-top:3px; color:var(--muted)}
+.tile .d.up{color:var(--good); font-weight:600}
+
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--line); margin:6px 0 20px; overflow-x:auto}
+.tab{
+  border:none; background:none; border-radius:6px 6px 0 0;
+  padding:9px 13px; font-size:14px; font-weight:500; color:var(--ink-2);
+  border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;
+}
+.tab:hover{background:var(--accent-soft)}
+.tab[aria-selected=true]{color:var(--ink); font-weight:600; border-bottom-color:var(--accent)}
+.panel{display:none}
+.panel.on{display:flex; flex-direction:column; gap:16px}
+
+.chip{display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--ink-2); white-space:nowrap}
+.chip.good{background:var(--good-chip); color:var(--good)}
+.chip.warn{background:var(--warn-chip); color:var(--warn)}
+.chip.crit{background:var(--crit-chip); color:var(--crit)}
+.chip.acc{background:var(--accent-soft); color:var(--accent)}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th{
+  text-align:left; font-size:12.5px; font-weight:600; color:var(--muted);
+  padding:6px 10px; border-bottom:1px solid var(--line); white-space:nowrap;
+}
+td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+td .nm{font-weight:500}
+td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
+.tblwrap{overflow-x:auto}
+.up{color:var(--good); font-weight:600}
+.dn{color:var(--crit); font-weight:600}
+.tile .d.down{color:var(--crit); font-weight:600}
+.mx .b{display:inline-block; min-width:22px; padding:1px 5px; border-radius:5px; font-size:11.5px; font-weight:600; margin:1px; text-align:center}
+.mx .b.sold{background:var(--accent); color:#fff}
+.mx .b.listed{background:var(--chip); color:var(--ink-2)}
+.mx .b.miss{background:none; border:1px dashed var(--baseline); color:var(--muted)}
+.mxlegend{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:10px; align-items:center}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:8px}
+.legend .k{display:inline-flex; align-items:center; gap:6px}
+.legend .sw{width:10px; height:10px; border-radius:3px; display:inline-block; flex:none}
+.zero{color:var(--muted)}
+
+.insights{display:flex; flex-direction:column; gap:9px}
+.insight{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
+.insight .dot{flex:none; width:6px; height:6px; border-radius:99px; background:var(--accent); margin-top:7px}
+.insight b{font-weight:600}
+
+.chart{width:100%}
+.chart svg{display:block; width:100%; height:auto}
+.axis-t{font-size:12px; fill:var(--muted); font-family:inherit; font-variant-numeric:tabular-nums}
+.lbl-t{font-size:12.5px; fill:var(--ink-2); font-family:inherit; font-weight:600; font-variant-numeric:tabular-nums}
+.cat-t{font-size:13px; fill:var(--ink); font-family:inherit}
+.grid-l{stroke:var(--line); stroke-width:1}
+.base-l{stroke:var(--baseline); stroke-width:1}
+#tip{
+  position:fixed; z-index:50; pointer-events:none; display:none;
+  background:var(--surface); border:1px solid var(--hairline); border-radius:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.14);
+  padding:8px 11px; font-size:13px; max-width:300px;
+}
+#tip .t1{font-weight:600; margin-bottom:2px}
+#tip .t2{color:var(--ink-2); font-variant-numeric:tabular-nums}
+
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+@media (max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+.empty{color:var(--muted); font-size:13.5px; padding:8px 0}
+.footer{margin-top:28px; color:var(--muted); font-size:12.5px; text-align:center}
+input[type=password], input[type=text]{
+  background:var(--surface-2); color:var(--ink); border:1px solid var(--line);
+  border-radius:8px; padding:8px 10px; font:inherit; font-size:13.5px;
+}
+.moreb summary{cursor:pointer; color:var(--accent); font-weight:600; list-style:none; margin-top:3px}
+.moreb summary::-webkit-details-marker{display:none}
+.moreb summary::before{content:"▸ "; font-size:11px}
+.moreb[open] summary::before{content:"▾ "}
+#gate{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px}
+#gate .card{max-width:380px; width:100%; text-align:center; padding:32px 28px}
+#gate h2{font-size:17px; margin-bottom:4px}
+#gate .desc{margin-bottom:16px}
+#gate input{width:100%; margin-bottom:10px; text-align:center; font-size:15px; padding:10px}
+#gate button{width:100%; padding:10px}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hd">
+    <h1>파트너센터 인사이트</h1>
+    <div class="sub" id="hdSub"></div>
+  </header>
+
+  <details class="card" id="inCard" open>
+    <summary>데이터 넣기 <span class="hint">— 실시간 현황은 붙여넣기, 확정 내역은 정산 엑셀 업로드</span></summary>
+    <div class="inBody">
+      <div class="inCol">
+        <h3>① 실시간 현황 붙여넣기</h3>
+        <p class="desc">파트너센터 ‘전체 자료 관리’ 표를 전체 선택(Ctrl+A) 복사 → 붙여넣기. 매일 한 번이면 충분하고, 여러 페이지는 이어서 붙여넣으면 됩니다.</p>
+        <textarea id="pasteBox" placeholder="자료 ID, 자료명, 누적 거래액… 표 전체를 그대로 붙여넣으세요."></textarea>
+        <div class="row">
+          <label class="note" for="snapDate">수집 날짜</label>
+          <input type="date" id="snapDate">
+          <button class="primary" id="btnParse">분석하기</button>
+        </div>
+        <p class="msg" id="pasteMsg"></p>
+      </div>
+      <div class="inCol">
+        <h3>② 정산내역 엑셀 업로드</h3>
+        <p class="desc">파트너센터에서 내려받은 정산내역(.xlsx)을 올리면 거래별 <b>날짜·요일·시간·고객</b> 분석이 열립니다. 판매 후 1~3일 뒤 확정되는 데이터라 실시간 현황과 함께 씁니다. 같은 파일을 다시 올려도 정산ID 기준으로 중복 없이 합쳐집니다.</p>
+        <div class="row">
+          <span class="filebtn"><button class="primary" tabindex="-1">엑셀 파일 선택</button><input type="file" id="xlsFile" accept=".xlsx,.xls" aria-label="정산내역 엑셀 업로드"></span>
+          <span class="note" id="txnCount"></span>
+        </div>
+        <p class="msg" id="xlsMsg"></p>
+      </div>
+    </div>
+    <p class="note" style="margin-top:12px">같은 날짜에 다시 붙여넣으면 그 날짜 스냅샷에 병합·갱신됩니다. 데이터는 이 브라우저에만 저장되니 ‘데이터 관리’ 탭에서 가끔 JSON 백업을 받아 두세요.</p>
+  </details>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-p="delta">오늘의 변동</button>
+    <button class="tab" role="tab" data-p="trend">추세·모멘텀</button>
+    <button class="tab" role="tab" data-p="time">타이밍·고객</button>
+    <button class="tab" role="tab" data-p="rank">랭킹·공략지점</button>
+    <button class="tab" role="tab" data-p="settle">정산</button>
+    <button class="tab" role="tab" data-p="tail">롱테일·만료</button>
+    <button class="tab" role="tab" data-p="data">데이터 관리</button>
+  </div>
+
+  <section class="panel" id="p-delta"></section>
+  <section class="panel" id="p-trend"></section>
+  <section class="panel" id="p-time"></section>
+  <section class="panel" id="p-rank"></section>
+  <section class="panel" id="p-settle"></section>
+  <section class="panel" id="p-tail"></section>
+  <section class="panel" id="p-data"></section>
+
+  <p class="footer">파트너센터 인사이트 · 실시간 현황(붙여넣기) + 정산내역(엑셀) 기준으로 집계합니다</p>
+</div>
+<div id="tip"></div>
+
+<script>
+'use strict';
+/* ================= seed — 처음 열었을 때 보이는 내 데이터 (지우려면 SEED/SEED_TXNS를 빈 배열로) ================= */
+const SEED_DATE='2026-08-30';
+const SEED=[];
+/* [정산ID, 거래일시, 상품명, 판매가격, 고객ID, 결제수단, 수수료, 거래액, 정산액] */
+const SEED_TXNS=[];
+
+/* ================= parser (실시간 붙여넣기) ================= */
+// PARSER-START
+function parseReport(text){
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const items=[]; let curId=null, buf=[], declared=null;
+  const flush=()=>{ if(curId){ const it=buildItem(curId,buf); if(it) items.push(it); } };
+  for(const ln of lines){
+    let dm;
+    if(!curId && (dm=ln.match(/^총\s*([\d,]+)\s*개$/))) declared=parseInt(dm[1].replace(/,/g,''),10);
+    if(/^\d{15,}$/.test(ln)){ flush(); curId=ln; buf=[]; }
+    else if(curId) buf.push(ln);
+  }
+  flush();
+  return {items, declared};
+}
+function buildItem(id, raw){
+  const b=raw.filter(l=>l!=='썸네일');
+  if(!b.length) return null;
+  const name=b[0];
+  if(!name || /^\d/.test(name)) return null;
+  const wons=[]; let buyers=0, status='판매중', expiry='', dday=null;
+  for(const l of b.slice(1)){
+    let m;
+    if((m=l.match(/^([\d,]+)\s*원$/))) wons.push(parseInt(m[1].replace(/,/g,''),10));
+    else if((m=l.match(/\((\d+)\s*명\s*구매\)/))) buyers=+m[1];
+    else if(/^\d{4}\.\d{2}\.\d{2}$/.test(l)) expiry=l;
+    else if((m=l.match(/\(D-(\d+)\)/))) dday=+m[1];
+    else if(l.length<=8 && /(판매중|판매중지|판매종료|승인|심사|대기|거절|만료)/.test(l)) status=l;
+  }
+  let rent=null, own=null, rev=0;
+  if(wons.length>=3){ rent=wons[0]; own=wons[1]; rev=wons[wons.length-1]; }
+  else if(wons.length===2){ rent=wons[0]; own=wons[1]; }
+  else if(wons.length===1){ rev=wons[0]; }
+  return {id, name, rent, own, rev, buyers, status, expiry, dday, ...classify(name)};
+}
+function classify(name){
+  let grade=(name.match(/^(고1|고2|고3|중1|중2|중3|초[1-6])/)||[])[1]||'';
+  if(!grade && /^고등/.test(name)) grade='고등';
+  if(!grade && /^중등/.test(name)) grade='중등';
+  if(!grade) grade='기타';
+  const pub=(name.match(/([A-Za-z가-힣]+\([A-Za-z가-힣]+\))/)||[])[1]||'기타';
+  let type='기타';
+  if(name.includes('변형문제')) type='변형문제';
+  else if(name.includes('본문 워크북')) type='본문 워크북';
+  else if(name.includes('워크북')) type='워크북';
+  const teacher=(name.match(/by\s+(.+)$/)||[])[1]||'';
+  const chm=name.match(/(\d+)\s*(과|강)/);
+  const chapter=chm?chm[1]:'';
+  const chUnit=chm?chm[2]:'과';
+  // 구분: 교과서(출판사 패턴) / 수능·모의고사(월·학평·모평 등) / 부교재(올림포스·수능특강 등 그 외)
+  let category;
+  if(pub!=='기타') category='교과서';
+  else if(/(모의고사|학평|모평|평가원|교육청)/.test(name) || /\d{1,2}\s*월/.test(name)) category='수능/모의고사';
+  else category='부교재';
+  let course=name.replace(/^(고1|고2|고3|중1|중2|중3|초[1-6]|고등|중등)\s*/,'').replace(/\s*by\s+.+$/,'');
+  const cut=course.search(/[A-Za-z가-힣]+\(/);
+  if(cut>0) course=course.slice(0,cut);
+  else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
+  course=course.replace(/(변형문제|본문 워크북|워크북)/g,'').replace(/\(([^)]{2,})\)/g,'').trim()||'기타';
+  return {grade,pub,type,teacher,chapter,chUnit,course,category};
+}
+function seriesKey(c){ return c.pub!=='기타' ? `${c.grade} ${c.course} ${c.pub}` : `${c.grade} ${c.course}`; }
+// PARSER-END
+
+/* ================= 정산 엑셀 파서 ================= */
+function parseSettlementRows(rows){
+  // rows: array of arrays (header 포함 아무 위치)
+  let hi=-1, H=null;
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const r=(rows[i]||[]).map(c=>String(c??'').trim());
+    if(r.includes('정산ID')&&r.includes('거래일시')){ hi=i; H=r; break; }
+  }
+  if(hi<0) return null;
+  const col=n=>H.indexOf(n);
+  const ci={id:col('정산ID'),st:col('상태'),dt:col('거래일시'),nm:col('상품명'),pr:col('판매가격(원)'),
+            cu:col('고객ID'),pm:col('결제수단'),fe:col('결제수수료(원)'),am:col('거래액(원)'),net:col('정산액(원)')};
+  const out=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const id=r[ci.id]; if(id===undefined||id===null||id==='') continue;
+    let dt=r[ci.dt];
+    if(dt instanceof Date){
+      const p=n=>String(n).padStart(2,'0');
+      dt=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    } else dt=String(dt).trim().replace('T',' ').slice(0,16);
+    if(!/^\d{4}-\d{2}-\d{2}/.test(dt)) continue;
+    const num=v=>{ const n=parseInt(String(v??'0').replace(/[^\d-]/g,''),10); return isNaN(n)?0:n; };
+    out.push({tid:String(id), dt, name:String(r[ci.nm]||''), status:String(r[ci.st]||''),
+      price:num(r[ci.pr]), cust:String(r[ci.cu]??''), method:String(r[ci.pm]||''),
+      fee:num(r[ci.fe]), amount:num(r[ci.am]), net:num(r[ci.net])});
+  }
+  return out;
+}
+
+/* ================= storage ================= */
+const LS_KEY='pc-insight-v2';
+let memStore=null, lsOk=true, teamMode=false;
+function loadState(){
+  try{
+    const s=localStorage.getItem(LS_KEY);
+    if(s) return JSON.parse(s);
+    const old=localStorage.getItem('pc-insight-v1'); // 이전 버전 마이그레이션
+    if(old){ const st=JSON.parse(old); st.txns=st.txns||[]; return st; }
+  }catch(e){ lsOk=false; }
+  return memStore;
+}
+function saveState(st){
+  memStore=st;
+  if(teamMode) return; // 팀 모드: 공유 원본은 data.enc.json — 브라우저에 저장하지 않음
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(st)); lsOk=true; }
+  catch(e){ lsOk=false; }
+}
+let state=loadState();
+if(!state || !Array.isArray(state.snaps) || !state.snaps.length){
+  state={snaps:[],txns:[]};
+  if(SEED.length) state.snaps.push({date:SEED_DATE, declared:80, items:SEED.map(r=>({
+    id:r[0], name:r[1], rent:r[2], own:r[3], rev:r[4], buyers:r[5],
+    status:'판매중', expiry:r[6], dday:r[7], ...classify(r[1])
+  }))});
+  state.txns=SEED_TXNS.map(r=>({tid:String(r[0]),dt:r[1],name:r[2],status:'결제완료',price:r[3],cust:String(r[4]),method:r[5],fee:r[6],amount:r[7],net:r[8]}));
+  saveState(state);
+}
+if(!Array.isArray(state.txns)) state.txns=[];
+state.snaps.forEach(sn=>sn.items.forEach(it=>Object.assign(it,classify(it.name))));
+function sortSnaps(){ state.snaps.sort((a,b)=>a.date<b.date?-1:1); }
+function sortTxns(){ state.txns.sort((a,b)=>a.dt<b.dt?-1:1); }
+
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s);
+const won=n=>n.toLocaleString('ko-KR')+'원';
+function wonC(n){ return won(n); }
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md=d=>d.slice(5).replace('-','.');
+const DOW=['일','월','화','수','목','금','토'];
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/864e5); }
+function todaySeoul(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());
+}
+function itemMap(snap){ const m=new Map(); snap.items.forEach(it=>m.set(it.id,it)); return m; }
+function totals(snap){
+  let rev=0, buyers=0, sold=0;
+  snap.items.forEach(it=>{ rev+=it.rev; buyers+=it.buyers; if(it.buyers>0) sold++; });
+  return {rev, buyers, sold, n:snap.items.length};
+}
+function snapBefore(days){
+  const snaps=state.snaps; if(!snaps.length) return null;
+  const latest=snaps[snaps.length-1];
+  const target=new Date(latest.date); target.setDate(target.getDate()-days);
+  const t=target.toISOString().slice(0,10);
+  let best=null;
+  for(const s of snaps){ if(s.date<=t) best=s; }
+  return best;
+}
+function validTxns(){ return state.txns.filter(t=>!/취소|환불/.test(t.status)); }
+
+/* ================= tooltip ================= */
+const tip=$('#tip');
+function showTip(html,ev){
+  tip.innerHTML=html; tip.style.display='block';
+  const pad=14, w=tip.offsetWidth, h=tip.offsetHeight;
+  let x=ev.clientX+pad, y=ev.clientY+pad;
+  if(x+w>innerWidth-8) x=ev.clientX-w-pad;
+  if(y+h>innerHeight-8) y=ev.clientY-h-pad;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTip(){ tip.style.display='none'; }
+function attachTip(node, html){
+  node.addEventListener('mousemove',ev=>showTip(html,ev));
+  node.addEventListener('mouseleave',hideTip);
+}
+
+/* ================= SVG chart builders ================= */
+const SVGNS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){
+  const e=document.createElementNS(SVGNS,tag);
+  for(const k in attrs) e.setAttribute(k,attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function niceTicks(max,count){
+  if(max<=0) return [0,1];
+  const step0=max/count, mag=Math.pow(10,Math.floor(Math.log10(step0)));
+  let step=mag;
+  for(const m of [1,2,2.5,5,10]){ if(step0<=m*mag){ step=m*mag; break; } }
+  const top=Math.ceil(max/step-1e-9)*step;
+  const out=[]; for(let v=0; v<=top+step*0.001; v+=step) out.push(Math.round(v));
+  return out;
+}
+function hbar(container, rows, opts={}){
+  container.innerHTML='';
+  if(!rows.length){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
+  const W=Math.max(320, container.clientWidth||600);
+  const labW=Math.min(300, Math.max(140, W*0.4));
+  const barH=18, gap=12, top=4;
+  const H=top+rows.length*(barH+gap);
+  const max=Math.max(...rows.map(r=>r.value),1);
+  const plotW=W-labW-104;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
+  rows.forEach((r,i)=>{
+    const y=top+i*(barH+gap);
+    const t=el('text',{x:labW-10,y:y+barH*0.72,'text-anchor':'end','class':'cat-t'},svg);
+    let lb=r.label; if(lb.length>26) lb=lb.slice(0,25)+'…';
+    t.textContent=lb;
+    attachTip(t, r.tipHtml||`<div class="t1">${esc(r.label)}</div><div class="t2">${won(r.value)}</div>`);
+    const bw=Math.max(r.value>0?3:0, r.value/max*plotW);
+    const color=r.color||'var(--s1)';
+    if(r.value>0){
+      const rr=4, x0=labW;
+      const p=el('path',{d:`M${x0} ${y} h${Math.max(0,bw-rr)} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${barH-2*rr} a${rr} ${rr} 0 0 1 -${rr} ${rr} h-${Math.max(0,bw-rr)} z`,fill:color},svg);
+      attachTip(p, r.tipHtml||`<div class="t1">${esc(r.label)}</div><div class="t2">${won(r.value)}</div>`);
+    }else{
+      el('line',{x1:labW,y1:y+barH/2,x2:labW+3,y2:y+barH/2,stroke:'var(--baseline)','stroke-width':2},svg);
+    }
+    const v=el('text',{x:labW+bw+8,y:y+barH*0.72,'class':'lbl-t'},svg);
+    v.textContent=opts.fmt?opts.fmt(r.value):wonC(r.value);
+  });
+  container.appendChild(svg);
+}
+function colChart(container, pts, opts={}){
+  container.innerHTML='';
+  if(!pts.length){ container.innerHTML=`<div class="empty">${opts.emptyMsg||'표시할 데이터가 없습니다.'}</div>`; return; }
+  const W=Math.max(320, container.clientWidth||600), H=opts.h||190;
+  const m={t:14,r:14,b:26,l:78};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const max=Math.max(...pts.map(p=>p.value),1);
+  const ticks=niceTicks(max,3), tmax=ticks[ticks.length-1];
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
+  ticks.forEach(v=>{
+    const y=m.t+ph-(v/tmax)*ph;
+    el('line',{x1:m.l,y1:y,x2:W-m.r,y2:y,'class':v===0?'base-l':'grid-l'},svg);
+    const t=el('text',{x:m.l-8,y:y+4,'text-anchor':'end','class':'axis-t'},svg);
+    t.textContent=opts.fmtTick?opts.fmtTick(v):v.toLocaleString('ko-KR');
+  });
+  const n=pts.length;
+  const slot=pw/n, bw=Math.min(24, slot*0.55);
+  pts.forEach((p,i)=>{
+    const cx=m.l+slot*i+slot/2;
+    const h=(p.value/tmax)*ph, y=m.t+ph-h;
+    if(p.value>0){
+      const rr=Math.min(4,bw/2);
+      const bar=el('path',{d:`M${cx-bw/2} ${m.t+ph} v-${Math.max(0,h-rr)} a${rr} ${rr} 0 0 1 ${rr} -${rr} h${bw-2*rr} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${Math.max(0,h-rr)} z`,fill:'var(--s1)'},svg);
+      attachTip(bar,p.tipHtml);
+    }
+    const hit=el('rect',{x:m.l+slot*i,y:m.t,width:slot,height:ph,fill:'transparent'},svg);
+    attachTip(hit,p.tipHtml);
+    const t=el('text',{x:cx,y:H-8,'text-anchor':'middle','class':'axis-t'},svg);
+    const st=Math.ceil(n/12);
+    if(n<=12 || i===n-1 || (i%st===0 && n-1-i>=st)) t.textContent=p.x;
+  });
+  container.appendChild(svg);
+}
+// 100% 비율 바: parts=[{label,value,color,tipHtml}] — 합쳐서 100%가 되는 파트-투-홀
+function shareBar(container, parts){
+  container.innerHTML='';
+  const total=parts.reduce((a,q)=>a+q.value,0);
+  if(!total){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
+  const W=Math.max(280, container.clientWidth||500), H=34, barH=26, gap=2, rr=4;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
+  const nz=parts.filter(q=>q.value>0);
+  let x=0;
+  nz.forEach((q,i)=>{
+    const w=q.value/total*(W-(nz.length-1)*gap);
+    const first=i===0, last=i===nz.length-1;
+    const d=`M${x+(first?rr:0)} 4`
+      +`h${w-(first?rr:0)-(last?rr:0)}`
+      +(last?` a${rr} ${rr} 0 0 1 ${rr} ${rr}`:'')
+      +` v${barH-2*(last||first?rr:0)>0?barH-(last?rr:0)-(first?rr:0)-( (last||first)?0:0):barH}`;
+    // 단순화: 첫/끝만 둥글게 — path 대신 두 단계로 그림
+    const seg=el('path',{d:roundedSharePath(x,4,w,barH,first?rr:0,last?rr:0),fill:q.color},svg);
+    attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${won(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
+    const pctv=Math.round(q.value/total*100);
+    if(w>=48){
+      const t=el('text',{x:x+w/2,y:4+barH*0.68,'text-anchor':'middle','font-size':'12.5','font-weight':'700',fill:'#fff'},svg);
+      t.textContent=pctv+'%';
+      t.style.pointerEvents='none';
+    }
+    x+=w+gap;
+  });
+  container.appendChild(svg);
+  const lg=document.createElement('div');
+  lg.className='legend';
+  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span>${esc(q.label)} ${won(q.value)} · ${Math.round(q.value/total*100)}%</span>`).join('');
+  container.appendChild(lg);
+}
+function roundedSharePath(x,y,w,h,rl,rr2){
+  return `M${x+rl} ${y}`
+    +`h${Math.max(0,w-rl-rr2)}`
+    +(rr2?` a${rr2} ${rr2} 0 0 1 ${rr2} ${rr2} v${h-2*rr2} a${rr2} ${rr2} 0 0 1 -${rr2} ${rr2}`:` v${h}`)
+    +`h-${Math.max(0,w-rl-rr2)}`
+    +(rl?` a${rl} ${rl} 0 0 1 -${rl} -${rl} v-${h-2*rl} a${rl} ${rl} 0 0 1 ${rl} -${rl}`:` v-${h}`)
+    +` z`;
+}
+// 2계열 누적 막대: pts=[{x, parts:[{label,value,color}]}]
+function stackedColChart(container, pts, opts={}){
+  container.innerHTML='';
+  if(!pts.length){ container.innerHTML=`<div class="empty">${opts.emptyMsg||'표시할 데이터가 없습니다.'}</div>`; return; }
+  const W=Math.max(320, container.clientWidth||600), H=opts.h||190;
+  const m={t:14,r:14,b:26,l:78};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const max=Math.max(...pts.map(p=>p.parts.reduce((a,q)=>a+q.value,0)),1);
+  const ticks=niceTicks(max,3), tmax=ticks[ticks.length-1];
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
+  ticks.forEach(v=>{
+    const y=m.t+ph-(v/tmax)*ph;
+    el('line',{x1:m.l,y1:y,x2:W-m.r,y2:y,'class':v===0?'base-l':'grid-l'},svg);
+    const t=el('text',{x:m.l-8,y:y+4,'text-anchor':'end','class':'axis-t'},svg);
+    t.textContent=opts.fmtTick?opts.fmtTick(v):v.toLocaleString('ko-KR');
+  });
+  const n=pts.length;
+  const slot=pw/n, bw=Math.min(24, slot*0.55);
+  pts.forEach((p,i)=>{
+    const cx=m.l+slot*i+slot/2;
+    const nz=p.parts.filter(q=>q.value>0);
+    let yCur=m.t+ph;
+    nz.forEach((q,qi)=>{
+      const h=(q.value/tmax)*ph;
+      const isTop=qi===nz.length-1;
+      const y0=yCur-h;
+      if(isTop){
+        const rr=Math.min(4,bw/2,h);
+        const seg=el('path',{d:`M${cx-bw/2} ${yCur} v-${Math.max(0,h-rr)} a${rr} ${rr} 0 0 1 ${rr} -${rr} h${Math.max(0,bw-2*rr)} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${Math.max(0,h-rr)} z`,fill:q.color},svg);
+        attachTip(seg, q.tipHtml||`<div class="t1">${p.x} · ${esc(q.label)}</div><div class="t2">${won(q.value)}</div>`);
+      }else{
+        const seg=el('rect',{x:cx-bw/2,y:y0,width:bw,height:Math.max(1,h-2),fill:q.color},svg);
+        attachTip(seg, q.tipHtml||`<div class="t1">${p.x} · ${esc(q.label)}</div><div class="t2">${won(q.value)}</div>`);
+      }
+      yCur=y0-2; // 2px 표면 간격
+    });
+    const hit=el('rect',{x:m.l+slot*i,y:m.t,width:slot,height:ph,fill:'transparent'},svg);
+    attachTip(hit, p.tipHtml||`<div class="t1">${p.x}</div>${p.parts.map(q=>`<div class="t2">${esc(q.label)} ${won(q.value)}</div>`).join('')}`);
+    const t=el('text',{x:cx,y:H-8,'text-anchor':'middle','class':'axis-t'},svg);
+    const st=Math.ceil(n/12);
+    if(n<=12 || i===n-1 || (i%st===0 && n-1-i>=st)) t.textContent=p.x;
+  });
+  container.appendChild(svg);
+  if(opts.legend){
+    const lg=document.createElement('div');
+    lg.className='legend';
+    lg.innerHTML=opts.legend.map(k=>`<span class="k"><span class="sw" style="background:${k.color}"></span>${esc(k.label)}</span>`).join('');
+    container.appendChild(lg);
+  }
+}
+function lineChart(container, pts){
+  container.innerHTML='';
+  if(!pts.length){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
+  const W=Math.max(320, container.clientWidth||600), H=210;
+  const m={t:16,r:100,b:26,l:78};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const max=Math.max(...pts.map(p=>p.value),1);
+  const ticks=niceTicks(max,3), tmax=ticks[ticks.length-1];
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
+  ticks.forEach(v=>{
+    const y=m.t+ph-(v/tmax)*ph;
+    el('line',{x1:m.l,y1:y,x2:W-m.r,y2:y,'class':v===0?'base-l':'grid-l'},svg);
+    const t=el('text',{x:m.l-8,y:y+4,'text-anchor':'end','class':'axis-t'},svg);
+    t.textContent=v.toLocaleString('ko-KR');
+  });
+  const n=pts.length;
+  const X=i=>n===1? m.l+pw/2 : m.l+(i/(n-1))*pw;
+  const Y=v=>m.t+ph-(v/tmax)*ph;
+  if(n>1){
+    let dL=`M${X(0)} ${Y(pts[0].value)}`;
+    pts.forEach((p,i)=>{ if(i) dL+=` L${X(i)} ${Y(p.value)}`; });
+    el('path',{d:dL+` L${X(n-1)} ${Y(0)} L${X(0)} ${Y(0)} Z`,fill:'var(--s1)','fill-opacity':.1},svg);
+    el('path',{d:dL,fill:'none',stroke:'var(--s1)','stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
+  }
+  pts.forEach((p,i)=>{
+    const t=el('text',{x:X(i),y:H-8,'text-anchor':i===n-1?'end':'middle','class':'axis-t'},svg);
+    const st=Math.ceil(n/8);
+    if(n<=8 || i===n-1 || (i%st===0 && n-1-i>=st)) t.textContent=p.x;
+  });
+  const last=pts[n-1];
+  el('circle',{cx:X(n-1),cy:Y(last.value),r:4.5,fill:'var(--s1)',stroke:'var(--surface)','stroke-width':2},svg);
+  const lt=el('text',{x:X(n-1)+9,y:Y(last.value)+4,'class':'lbl-t'},svg);
+  lt.textContent=wonC(last.value);
+  pts.forEach((p,i)=>{
+    const x0=n===1?m.l:(i===0?m.l:(X(i-1)+X(i))/2);
+    const x1=n===1?m.l+pw:(i===n-1?m.l+pw:(X(i)+X(i+1))/2);
+    const hit=el('rect',{x:x0,y:m.t,width:Math.max(1,x1-x0),height:ph,fill:'transparent'},svg);
+    hit.addEventListener('mousemove',ev=>{
+      showTip(p.tipHtml,ev);
+      svg.querySelectorAll('.hoverdot').forEach(d=>d.remove());
+      el('circle',{cx:X(i),cy:Y(p.value),r:4.5,fill:'var(--s1)',stroke:'var(--surface)','stroke-width':2,'class':'hoverdot'},svg);
+    });
+    hit.addEventListener('mouseleave',()=>{ hideTip(); svg.querySelectorAll('.hoverdot').forEach(d=>d.remove()); });
+  });
+  container.appendChild(svg);
+}
+
+/* ================= analytics ================= */
+function computeAll(){
+  sortSnaps(); sortTxns();
+  const snaps=state.snaps;
+  const latest=snaps[snaps.length-1]||{date:'-',items:[]};
+  const prev=snaps.length>1?snaps[snaps.length-2]:null;
+  const tl=totals(latest);
+  const tp=prev?totals(prev):null;
+  const pm=prev?itemMap(prev):new Map();
+  const deltas=latest.items.map(it=>{
+    const p=pm.get(it.id);
+    return {it, dRev:it.rev-(p?p.rev:0), dBuy:it.buyers-(p?p.buyers:0),
+            isNew:prev? !p : false,
+            statusChanged: p && p.status!==it.status ? p.status : null};
+  });
+  const lm=itemMap(latest);
+  const removed=prev? prev.items.filter(it=>!lm.has(it.id)) : [];
+
+  const txns=validTxns();
+  const T={n:txns.length, amount:0, net:0, fee:0, last:txns.length?txns[txns.length-1].dt:null, first:txns.length?txns[0].dt:null};
+  txns.forEach(t=>{ T.amount+=t.amount; T.net+=t.net; T.fee+=t.fee; });
+  const covDays=txns.length? daysBetween(T.first.slice(0,10),T.last.slice(0,10))+1 : 0;
+
+  // 결제(주문) 단위: 같은 고객·같은 시각 = 결제 1회 (묶음결제 포함)
+  const orderMap=new Map();
+  txns.forEach(t=>{
+    const k=t.cust+'|'+t.dt;
+    if(!orderMap.has(k)) orderMap.set(k,{cust:t.cust,dt:t.dt,n:0,amount:0,net:0});
+    const o=orderMap.get(k); o.n++; o.amount+=t.amount; o.net+=t.net;
+  });
+  const orders=[...orderMap.values()].sort((a,b)=>a.dt<b.dt?-1:1);
+
+  // 월별 정산 집계 (정산은 월 단위 지급)
+  const monthsMap=new Map();
+  txns.forEach(t=>{
+    const mk=t.dt.slice(0,7);
+    if(!monthsMap.has(mk)) monthsMap.set(mk,{m:mk,n:0,amount:0,fee:0,net:0});
+    const g=monthsMap.get(mk);
+    g.n++; g.amount+=t.amount; g.fee+=t.fee; g.net+=t.net;
+  });
+  orders.forEach(o=>{ const g=monthsMap.get(o.dt.slice(0,7)); if(g) g.orders=(g.orders||0)+1; });
+  const monthly=[...monthsMap.values()].sort((a,b)=>a.m<b.m?-1:1);
+
+  // 대여/소장·할인 (판매가격 기준)
+  const nameMap=new Map(); latest.items.forEach(it=>nameMap.set(it.name,it));
+  const opt={own:{label:'소장(PDF 다운)',n:0,amount:0},rent:{label:'대여(열람+출력)',n:0,amount:0},etc:{label:'기타',n:0,amount:0}};
+  let discN=0, discSum=0;
+  txns.forEach(t=>{
+    const it=nameMap.get(t.name);
+    let o='etc';
+    if(it&&it.own===t.price) o='own';
+    else if(it&&it.rent===t.price) o='rent';
+    else if([14850,5850].includes(t.price)) o='own';
+    else if([9900,3900].includes(t.price)) o='rent';
+    opt[o].n++; opt[o].amount+=t.amount;
+    if(t.price>t.amount){ discN++; discSum+=t.price-t.amount; }
+  });
+
+  // 고객 집계 + 학생/선생님 분류: 여러 학년 또는 여러 출처 교재 구매 → 선생님
+  const custMap=new Map();
+  txns.forEach(t=>{
+    const c=classify(t.name);
+    if(!custMap.has(t.cust)) custMap.set(t.cust,{cust:t.cust,n:0,amount:0,first:t.dt,last:t.dt,names:[],buys:[],grades:new Set(),pubs:new Set(),days:new Set()});
+    const g=custMap.get(t.cust);
+    g.n++; g.amount+=t.amount; g.days.add(t.dt.slice(0,10));
+    if(t.dt<g.first) g.first=t.dt;
+    if(t.dt>g.last) g.last=t.dt;
+    g.names.push(t.name);
+    g.buys.push({name:t.name, dt:t.dt, amount:t.amount});
+    if(!['기타','고등','중등'].includes(c.grade)) g.grades.add(c.grade);
+    if(c.pub!=='기타') g.pubs.add(c.pub);
+  });
+  custMap.forEach(g=>{ g.seg=(g.grades.size>=2||g.pubs.size>=2)?'선생님':'학생'; });
+  const custs=[...custMap.values()].sort((a,b)=>b.amount-a.amount);
+  const segOf=new Map(); custMap.forEach(g=>segOf.set(g.cust,g.seg));
+
+  // momentum: 정산 거래가 있으면 거래 기준(정확), 없으면 스냅샷 기준
+  let momentum;
+  if(txns.length){
+    const ref=new Date(T.last.slice(0,10));
+    const d7=new Date(ref); d7.setDate(d7.getDate()-6);
+    const d14=new Date(ref); d14.setDate(d14.getDate()-13);
+    const k=d=>d.toISOString().slice(0,10);
+    const byName=new Map();
+    txns.forEach(t=>{
+      const day=t.dt.slice(0,10);
+      if(!byName.has(t.name)) byName.set(t.name,{r7:0,r14p:0,first:day});
+      const g=byName.get(t.name);
+      if(day<g.first) g.first=day;
+      if(day>=k(d7)) g.r7+=t.amount;
+      else if(day>=k(d14)) g.r14p+=t.amount;
+    });
+    momentum=latest.items.map(it=>{
+      const g=byName.get(it.name)||{r7:0,r14p:0,first:null};
+      let tag;
+      if(covDays<14){
+        tag = g.r7>0?'판매중':(it.rev>0?'정체':'미판매');
+      }
+      else if(g.r7>0 && g.r14p>0 && g.r7>g.r14p) tag='가속';
+      else if(g.r7>0 && g.r14p===0) tag=(g.first && g.first<k(d14))?'재개':'신규';
+      else if(g.r7>0) tag='꾸준';
+      else if(it.rev>0) tag='정체';
+      else tag='미판매';
+      return {it,r7:g.r7,r14p:g.r14p,tag};
+    });
+  }else{
+    const s7=snapBefore(7), s14=snapBefore(14);
+    const m7=s7&&s7!==latest?itemMap(s7):null;
+    const m14=s14&&s14!==latest&&s14!==s7?itemMap(s14):null;
+    momentum=latest.items.map(it=>{
+      const r7 = m7? it.rev-((m7.get(it.id)||{rev:0}).rev) : null;
+      const r14p = (m7&&m14)? ((m7.get(it.id)||{rev:0}).rev-((m14.get(it.id)||{rev:0}).rev)) : null;
+      let tag=null;
+      if(r7!==null){
+        if(r7>0 && r14p!==null && r14p>0 && r7>r14p) tag='가속';
+        else if(r7>0 && r14p===0) tag=(it.rev>r7)?'재개':'신규';
+        else if(r7>0) tag='꾸준';
+        else if(it.rev>0) tag='정체';
+        else tag='미판매';
+      }
+      return {it,r7,r14p,tag};
+    });
+  }
+  return {snaps,latest,prev,tl,tp,deltas,removed,momentum,txns,T,covDays,monthly,opt,disc:{n:discN,sum:discSum},custs,segOf,orders};
+}
+function groupBy(items, key){
+  const m=new Map();
+  items.forEach(it=>{
+    const k=it[key];
+    if(!m.has(k)) m.set(k,{label:k,rev:0,buyers:0,n:0,sold:0});
+    const g=m.get(k);
+    g.rev+=it.rev; g.buyers+=it.buyers; g.n++; if(it.buyers>0) g.sold++;
+  });
+  return [...m.values()].sort((a,b)=>b.rev-a.rev);
+}
+function shortName(x){ return String(x.name||x).replace(/\s*by\s+.+$/,''); }
+
+/* ================= renderers ================= */
+function lagChip(A){
+  if(!A.T.n) return '';
+  const last=A.T.last.slice(0,10);
+  const stale=daysBetween(last, todaySeoul());
+  const cls=stale>4?'crit':'warn';
+  const txt=stale>4?`정산 ~${md(last)} 확정분 — ${stale}일 지났어요, 새 엑셀을 올려주세요`:`정산 ~${md(last)} 확정분 · 판매 후 1~3일 지연`;
+  return `<span class="chip ${cls}">⏳ ${txt}</span>`;
+}
+function renderKpis(A){
+  const {tl,tp}=A;
+  const dRev=tp? tl.rev-tp.rev : null;
+  const dBuy=tp? tl.buyers-tp.buyers : null;
+  const conv=tl.n? Math.round(tl.sold/tl.n*100) : 0;
+  const kp=[
+    {lb:'누적 거래액 (실시간)', v:won(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`▲ ${won(dRev)} (전 스냅샷 대비)`:dRev<0?`▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:'변동 없음'), up:dRev>0, down:dRev<0},
+    {lb:'누적 구매 갯수', v:tl.buyers+'<small>개</small>', d: dBuy===null?'무엇이 팔렸나 (자료 수량)':(dBuy>0?`▲ ${dBuy}개`:dBuy<0?`▼ ${-dBuy}개`:'변동 없음'), up:dBuy>0, down:dBuy<0},
+    {lb:'결제 건수 (정산 기준)', v:A.T.n?A.orders.length+'<small>건</small>':'—', d:A.T.n?`결제당 ${(A.T.n/A.orders.length).toFixed(1)}개 · 객단가 ${won(Math.round(A.T.amount/A.orders.length))} · <b>~${md(A.T.last.slice(0,10))} 확정분</b>`:'지갑이 몇 번 열렸나 (주문 단위)'},
+    {lb:'등록 자료', v:(A.latest.declared&&A.latest.declared>tl.n)?`${tl.n}<small> / ${A.latest.declared}개</small>`:tl.n+'<small>개</small>', d:(A.latest.declared&&A.latest.declared>tl.n)?`⚠ ${A.latest.declared-tl.n}개 미수집 — 나머지 페이지를 붙여넣으세요`:`판매중 ${A.latest.items.filter(i=>/판매중$/.test(i.status)).length}개 · 전환 ${conv}%`, down:!!(A.latest.declared&&A.latest.declared>tl.n)},
+  ];
+  $('#kpis').innerHTML=kp.map(k=>`
+    <div class="tile">
+      <div class="lb">${k.lb}</div>
+      <div class="v">${k.v}</div>
+      <div class="d ${k.up?'up':k.down?'down':''}">${k.d||'&nbsp;'}</div>
+    </div>`).join('');
+}
+function deltaRow(d){
+  const it=d.it;
+  const badge=d.isNew?'<span class="chip acc">신규 등록</span>':'';
+  const st=d.statusChanged?`<span class="chip warn">상태: ${esc(d.statusChanged)} → ${esc(it.status)}</span>`:'';
+  return `<tr>
+    <td><div class="nm">${esc(shortName(it))} ${badge} ${st}</div>
+        <div class="sub">${esc(it.grade)} · ${esc(it.pub)} · ${esc(it.type)}</div></td>
+    <td class="num ${d.dRev>0?'up':d.dRev<0?'dn':'zero'}">${d.dRev>0?'+'+won(d.dRev):d.dRev<0?'−'+won(-d.dRev):'—'}</td>
+    <td class="num ${d.dBuy>0?'up':d.dBuy<0?'dn':'zero'}">${d.dBuy>0?'+'+d.dBuy+'개':d.dBuy<0?'−'+(-d.dBuy)+'개':'—'}</td>
+    <td class="num">${won(it.rev)}<div class="sub">${it.buyers}개</div></td>
+  </tr>`;
+}
+function renderDelta(A){
+  const p=$('#p-delta');
+  if(!A.prev){
+    p.innerHTML=`<div class="card"><h2>아직 비교할 이전 스냅샷이 없어요</h2>
+      <p class="desc">오늘 데이터는 저장되었습니다. 내일 다시 붙여넣으면 이 탭에서 <b>새로 팔린 자료, 매출 증감, 상태 변화</b>를 자동으로 보여드립니다. 그동안은 정산내역 기준 분석을 ‘추세·모멘텀’, ‘타이밍·고객’ 탭에서 볼 수 있어요.</p>
+      <p class="note">현재 저장된 스냅샷: ${A.snaps.map(s=>s.date).join(', ')||'없음'}</p></div>`;
+    return;
+  }
+  const gap=daysBetween(A.prev.date,A.latest.date);
+  const changed=A.deltas.filter(d=>d.dRev!==0||d.dBuy!==0).sort((a,b)=>b.dRev-a.dRev);
+  const news=A.deltas.filter(d=>d.isNew);
+  const stch=A.deltas.filter(d=>d.statusChanged);
+  const dRev=A.tl.rev-A.tp.rev, dBuy=A.tl.buyers-A.tp.buyers;
+  let html=`<div class="card">
+    <h2>${A.prev.date} → ${A.latest.date} 변동 <span class="chip">${gap}일 간격</span></h2>
+    <p class="desc">이 기간 매출 <b class="${dRev>=0?'up':'dn'}">${dRev>=0?'+':'−'}${won(Math.abs(dRev))}</b> · 구매 <b class="${dBuy>=0?'up':'dn'}">${dBuy>=0?'+':'−'}${Math.abs(dBuy)}개</b>${news.length?` · 신규 등록 ${news.length}개`:''}${A.removed.length?` · 목록에서 빠진 자료 ${A.removed.length}개`:''}</p>
+    ${A.latest.items.length<A.prev.items.length?`<p class="desc" style="color:var(--warn)">⚠ 자료 수가 ${A.prev.items.length}개 → ${A.latest.items.length}개로 줄었습니다. 일부 페이지만 붙여넣었을 수 있으니, 모든 페이지를 이어서 붙여넣은 뒤 다시 확인하세요 — 이 상태의 변동 수치는 신뢰가 낮습니다.</p>`:''}`;
+  if(changed.length){
+    html+=`<div class="tblwrap"><table>
+      <thead><tr><th>자료</th><th class="num">매출 증가</th><th class="num">구매 증가</th><th class="num">누적</th></tr></thead>
+      <tbody>${changed.map(deltaRow).join('')}</tbody></table></div>`;
+  }else{
+    html+=`<div class="empty">이 기간에 새로 판매된 자료가 없습니다.</div>`;
+  }
+  html+=`</div>`;
+  if(stch.length){
+    html+=`<div class="card"><h2>판매 상태 변경</h2><div class="tblwrap"><table><tbody>${
+      stch.map(d=>`<tr><td class="nm">${esc(shortName(d.it))}</td><td>${esc(d.statusChanged)} → <b>${esc(d.it.status)}</b></td></tr>`).join('')
+    }</tbody></table></div></div>`;
+  }
+  if(A.removed.length){
+    html+=`<div class="card"><h2>이번 목록에서 빠진 자료</h2>
+      <p class="desc">이전 스냅샷에는 있었지만 이번 붙여넣기에 없는 자료입니다. 페이지 일부만 붙여넣었다면 무시해도 됩니다.</p>
+      <div class="tblwrap"><table><tbody>${A.removed.map(it=>`<tr><td class="nm">${esc(shortName(it))}</td><td class="num">${won(it.rev)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  p.innerHTML=html;
+}
+function buildInsights(A){
+  const out=[];
+  const {tl,tp,deltas,latest,momentum,txns,T}=A;
+  if(tp){
+    const dRev=tl.rev-tp.rev;
+    const top=deltas.filter(d=>d.dRev>0).sort((a,b)=>b.dRev-a.dRev)[0];
+    if(dRev>0&&top) out.push(`전 스냅샷 대비 매출이 <b>+${won(dRev)}</b> 늘었고, 그중 <b>${esc(shortName(top.it))}</b>이 +${won(top.dRev)}로 가장 컸습니다.`);
+    else if(dRev===0) out.push(`전 스냅샷 이후 새 판매가 없습니다.`);
+  }
+  if(txns.length){
+    // 요일/시간 피크
+    const dow=Array(7).fill(0), hour={};
+    txns.forEach(t=>{
+      const d=new Date(t.dt.replace(' ','T'));
+      dow[d.getDay()]+=t.amount;
+      const h=d.getHours(); hour[h]=(hour[h]||0)+1;
+    });
+    const bi=dow.indexOf(Math.max(...dow));
+    const bh=Object.entries(hour).sort((a,b)=>b[1]-a[1])[0];
+    out.push(`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다${txns.length<50?` (구매 표본 ${txns.length}개 — 아직 참고용)`:''}.`);
+    // 재구매
+    if(A.orders.length) out.push(`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
+    const revisit=A.custs.filter(c=>c.days.size>=2).length;
+    const multi=A.custs.filter(c=>c.n>1).length;
+    if(A.custs.length) out.push(`고객 ${A.custs.length}명 중 <b>${multi}명</b>이 한 번에 여러 자료를 묶어 샀고, 다른 날에 또 구매한 고객은 <b>${revisit}명</b>입니다 — 묶음 경향이 강하니 같은 시리즈의 다음 ${'과'}를 미리 채워두는 효과가 큽니다.`);
+    const tc=A.custs.filter(c=>c.seg==='선생님');
+    if(A.custs.length&&tc.length){
+      const ta=tc.reduce((s,c)=>s+c.amount,0);
+      out.push(`<b>선생님</b> 고객 ${tc.length}명(${Math.round(tc.length/A.custs.length*100)}%)이 매출의 <b>${Math.round(ta/(T.amount||1)*100)}%</b>를 차지합니다 — 여러 학년·여러 교재를 한 번에 사는 고객이라, 팔리는 시리즈의 빈 과·빈 유형을 채울수록 이 층의 객단가가 커집니다.`);
+    }
+    if(tl.rev>T.amount) out.push(`실시간 누적 ${wonC(tl.rev)} 중 정산에 반영된 금액은 ${wonC(T.amount)} — 약 <b>${won(tl.rev-T.amount)}</b>이 정산 확정 대기 중으로 추정됩니다.`);
+  }
+  const byPub=groupBy(latest.items,'pub');
+  if(byPub.length&&tl.rev>0){
+    const t=byPub[0];
+    out.push(`누적 매출 1위 교재는 <b>${esc(t.label)}</b> — 전체의 ${Math.round(t.rev/tl.rev*100)}% (${won(t.rev)}).`);
+  }
+  const tg=buildTargets(A);
+  if(tg.length) out.push(`가장 유력한 공략 지점: <b>${esc(tg[0].title)}</b> — ${tg[0].reason} (순위 전체는 ‘랭킹·공략지점’ 탭).`);
+  const acc=momentum.filter(m=>m.tag==='가속').sort((a,b)=>(b.r7||0)-(a.r7||0));
+  if(acc.length) out.push(`최근 7일 판매가 <b>가속</b> 중: ${acc.slice(0,3).map(m=>esc(shortName(m.it))).join(', ')}${acc.length>3?` 외 ${acc.length-3}개`:''}.`);
+  const nw=momentum.filter(m=>m.tag==='신규'||m.tag==='재개');
+  if(nw.length) out.push(`최근 7일에 판매가 새로 시작되거나 재개된 자료가 <b>${nw.length}개</b> 있습니다.`);
+  const stale=momentum.filter(m=>m.tag==='정체').length;
+  if(stale) out.push(`판매 이력이 있지만 최근 판매가 끊긴 자료가 <b>${stale}개</b> 있습니다.`);
+  if(tl.n) out.push(`${tl.n}개 중 ${tl.sold}개 판매(전환 ${Math.round(tl.sold/tl.n*100)}%) — 미판매 ${tl.n-tl.sold}개는 ‘롱테일·만료’ 탭에서 확인하세요.`);
+  const sorted=[...latest.items].sort((a,b)=>b.rev-a.rev);
+  const top5=sorted.slice(0,5).reduce((s,i)=>s+i.rev,0);
+  if(tl.rev>0) out.push(`상위 5개 자료가 전체 매출의 <b>${Math.round(top5/tl.rev*100)}%</b>를 차지합니다.`);
+  const exp=latest.items.filter(i=>i.dday!==null&&i.dday<=90);
+  if(exp.length) out.push(`<b>${exp.length}개</b> 자료의 라이선스가 90일 내에 만료됩니다.`);
+  return out;
+}
+function renderTrend(A){
+  const p=$('#p-trend');
+  const ins=buildInsights(A);
+  const useTxn=A.txns.length>0;
+  let html=`<div class="card"><h2>자동 인사이트</h2>
+    <p class="desc">데이터가 쌓일수록 변동 기반 인사이트가 정교해집니다.</p>
+    <div class="insights">${ins.map(s=>`<div class="insight"><span class="dot"></span><div>${s}</div></div>`).join('')||'<div class="empty">데이터를 넣으면 인사이트가 생성됩니다.</div>'}</div></div>`;
+  html+=`<div class="grid2">
+    <div class="card"><h2>일별 매출 ${useTxn?lagChip(A):'<span class="chip">스냅샷 기준</span>'}</h2><p class="desc">${useTxn?'거래일 기준 확정 매출 — <b>오늘·어제 판매는 아직 이 차트에 없습니다.</b> 실시간 수치는 위 KPI(붙여넣기 기준)를 보세요.':'스냅샷 사이에 늘어난 매출'}</p><div class="chart" id="chDaily"></div></div>
+    <div class="card"><h2>${useTxn?'최근 7일 이동 매출':'누적 거래액 추이'}</h2><p class="desc">${useTxn?'각 날짜 기준 직전 7일 매출 합 — 선이 오르면 판매 속도가 붙는 중입니다. 정산 지연 탓에 마지막 1~3일 구간은 실제보다 낮게 보일 수 있어요':'스냅샷별 누적 매출 합계'}</p><div class="chart" id="chCum"></div></div>
+  </div>`;
+  html+=`<div class="card"><h2>자료별 모멘텀 ${useTxn?lagChip(A):''}</h2>
+    <p class="desc">${useTxn?`정산 거래일 기준으로 최근 7일과 그 이전 7일을 비교해 가속·꾸준·신규·재개·정체로 분류합니다. ‘실시간 미반영’은 정산 내역에는 있는데 붙여넣은 실시간 목록에는 판매가 0인 자료입니다 — 목록의 다른 페이지에 있거나 아직 갱신 전일 수 있어요.${A.covDays<14?` <b>지금은 정산 데이터가 ${A.covDays}일치뿐이라 가속·신규 구분 없이 ‘판매중’으로만 표시합니다.</b>`:''}`:'스냅샷 기준 비교 — 정산 엑셀을 올리면 더 정확해집니다.'}</p>
+    <div id="momTbl"></div></div>`;
+  p.innerHTML=html;
+
+  if(useTxn){
+    // 일별 (빈 날 0 채움)
+    const byDay=new Map();
+    A.txns.forEach(t=>{ const d=t.dt.slice(0,10); byDay.set(d,(byDay.get(d)||0)+t.amount); });
+    const days=[...byDay.keys()].sort();
+    const pts=[];
+    let cur=new Date(days[0]); const end=new Date(days[days.length-1]);
+    while(cur<=end){
+      const k=cur.toISOString().slice(0,10);
+      const v=byDay.get(k)||0;
+      const cnt=A.txns.filter(t=>t.dt.slice(0,10)===k).length;
+      pts.push({x:md(k), value:v, tipHtml:`<div class="t1">${k} (${DOW[cur.getUTCDay()]})</div><div class="t2">${won(v)} · 구매 ${cnt}개</div>`});
+      cur.setDate(cur.getDate()+1);
+    }
+    colChart($('#chDaily'),pts);
+    // 7일 이동합
+    const allDays=pts.map((p,i)=>{ const d=new Date(days[0]); d.setDate(d.getDate()+i); return d.toISOString().slice(0,10); });
+    const valByDay=k=>byDay.get(k)||0;
+    const cpts=allDays.map((d,i)=>{
+      let sum=0;
+      for(let j=Math.max(0,i-6); j<=i; j++) sum+=valByDay(allDays[j]);
+      return {x:md(d), value:sum, tipHtml:`<div class="t1">${d}</div><div class="t2">직전 7일 합 ${won(sum)}</div>`};
+    });
+    lineChart($('#chCum'),cpts);
+  }else{
+    const snaps=A.snaps;
+    const cumPts=snaps.map(s=>{
+      const t=totals(s);
+      return {x:md(s.date), value:t.rev, tipHtml:`<div class="t1">${s.date}</div><div class="t2">누적 ${won(t.rev)} · 구매 ${t.buyers}개</div>`};
+    });
+    lineChart($('#chCum'),cumPts);
+    const dPts=[];
+    for(let i=1;i<snaps.length;i++){
+      const a=totals(snaps[i-1]), b=totals(snaps[i]);
+      dPts.push({x:md(snaps[i].date), value:b.rev-a.rev,
+        tipHtml:`<div class="t1">${snaps[i-1].date} → ${snaps[i].date}</div><div class="t2">+${won(b.rev-a.rev)} · 구매 +${b.buyers-a.buyers}개</div>`});
+    }
+    colChart($('#chDaily'),dPts,{emptyMsg:'스냅샷이 2개 이상 쌓이면 표시됩니다. (정산 엑셀을 올리면 바로 볼 수 있어요)'});
+  }
+
+  const rows=A.momentum.filter(m=>m.tag&&m.tag!=='미판매')
+    .sort((a,b)=>(b.r7||0)-(a.r7||0) || b.it.rev-a.it.rev);
+  if(!rows.length){
+    $('#momTbl').innerHTML='<div class="empty">판매 데이터가 쌓이면 자료별 판매 속도가 계산됩니다.</div>';
+  }else{
+    const chip=t=>({'가속':'<span class="chip good">▲ 가속</span>','신규':'<span class="chip acc">신규 판매</span>','재개':'<span class="chip acc">판매 재개</span>','꾸준':'<span class="chip">꾸준</span>','판매중':'<span class="chip acc">판매중</span>','정체':'<span class="chip warn">정체</span>'}[t]||'');
+    $('#momTbl').innerHTML=`<div class="tblwrap"><table>
+      <thead><tr><th>자료</th><th>추세</th><th class="num">최근 7일</th><th class="num">이전 7일</th><th class="num">누적</th></tr></thead>
+      <tbody>${rows.map(m=>`<tr>
+        <td><div class="nm">${esc(shortName(m.it))}</div><div class="sub">${esc(m.it.grade)} · ${esc(m.it.pub)} · ${esc(m.it.type)}</div></td>
+        <td>${chip(m.tag)}${m.r7>0&&m.it.rev===0?' <span class="chip warn">실시간 미반영</span>':''}</td>
+        <td class="num ${m.r7>0?'up':'zero'}">${m.r7>0?'+'+won(m.r7):'—'}</td>
+        <td class="num zero">${m.r14p>0?'+'+won(m.r14p):'—'}</td>
+        <td class="num">${won(m.it.rev)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+}
+function renderTime(A){
+  const p=$('#p-time');
+  if(!A.txns.length){
+    p.innerHTML=`<div class="card"><h2>정산내역 엑셀이 필요해요</h2>
+      <p class="desc">판매 <b>날짜·요일·시간</b>과 <b>고객</b> 분석은 거래 단위 데이터가 있어야 가능합니다. 위 ‘데이터 넣기’에서 파트너센터 정산내역(.xlsx)을 올려 주세요. 판매 1~3일 후 확정되는 데이터라, 실시간 현황(붙여넣기)과 함께 보면 됩니다.</p></div>`;
+    return;
+  }
+  const txns=A.txns;
+  const dowOrder=[1,2,3,4,5,6,0]; // 월~일
+  const DOWC={1:'var(--s1)',2:'var(--s2)',3:'var(--s3)',4:'var(--s4)',5:'var(--s5)',6:'var(--s6)',0:'var(--s7)'}; // 요일 고정색
+  const dowAmt=Array(7).fill(0), dowCnt=Array(7).fill(0);
+  const binAmt=Array(8).fill(0), binCnt=Array(8).fill(0);
+  const binDow=Array.from({length:8},()=>Array(7).fill(0)); // [시간대][요일] 결제 이벤트 수
+  const evSeen=new Set();
+  txns.forEach(t=>{
+    const d=new Date(t.dt.replace(' ','T'));
+    dowAmt[d.getDay()]+=t.amount; dowCnt[d.getDay()]++;
+    const b=Math.floor(d.getHours()/3);
+    binAmt[b]+=t.amount;
+    const ek=t.cust+'|'+t.dt;
+    if(!evSeen.has(ek)){ evSeen.add(ek); binCnt[b]++; binDow[b][d.getDay()]++; }
+  });
+  const custs=A.custs;
+  const rep=custs.filter(c=>c.days.size>=2);
+  const bundleKey=new Map();
+  txns.forEach(t=>{ const k=t.cust+'|'+t.dt; bundleKey.set(k,(bundleKey.get(k)||0)+1); });
+  const bundles=[...bundleKey.values()].filter(v=>v>1).length;
+  const teachers=custs.filter(c=>c.seg==='선생님'), students=custs.filter(c=>c.seg==='학생');
+  const total=A.T.amount||1;
+  const tAmt=teachers.reduce((s,c)=>s+c.amount,0), sAmt=students.reduce((s,c)=>s+c.amount,0);
+  const tN=txns.filter(t=>A.segOf.get(t.cust)==='선생님').length;
+  const pct=(a,b)=>b?Math.round(a/b*100):0;
+  const segChip=c=>c.seg==='선생님'?'<span class="chip good">선생님</span>':'<span class="chip">학생(추정)</span>';
+  // 최근 7일 vs 이전 7일 선생님 매출 비중
+  const ref=new Date(A.T.last.slice(0,10));
+  const d7=new Date(ref); d7.setDate(d7.getDate()-6);
+  const d14=new Date(ref); d14.setDate(d14.getDate()-13);
+  const kk=d=>d.toISOString().slice(0,10);
+  const w1={t:0,all:0}, w0={t:0,all:0};
+  txns.forEach(t=>{
+    const day=t.dt.slice(0,10);
+    const w= day>=kk(d7)? w1 : (day>=kk(d14)? w0 : null);
+    if(!w) return;
+    w.all+=t.amount;
+    if(A.segOf.get(t.cust)==='선생님') w.t+=t.amount;
+  });
+  p.innerHTML=`
+    <p class="note" style="margin:0 0 2px">이 탭의 모든 수치는 <b>정산 확정 데이터</b> 기준입니다 ${lagChip(A)}</p>
+    <div class="kpis" style="margin:0">
+      <div class="tile"><div class="lb">고객 수</div><div class="v">${custs.length}<small>명</small></div><div class="d">정산 반영 거래 기준</div></div>
+      <div class="tile"><div class="lb">선생님</div><div class="v">${teachers.length}<small>명</small></div><div class="d">매출의 ${pct(tAmt,total)}% 기여</div></div>
+      <div class="tile"><div class="lb">학생(추정)</div><div class="v">${students.length}<small>명</small></div><div class="d">매출의 ${pct(sAmt,total)}% 기여</div></div>
+      <div class="tile"><div class="lb">다른 날 또 구매</div><div class="v">${rep.length}<small>명</small></div><div class="d">구매일이 2일 이상인 고객 — 진짜 다시 온 손님</div></div>
+      <div class="tile"><div class="lb">결제 건수</div><div class="v">${A.orders.length}<small>건</small></div><div class="d">묶음 결제 ${bundles}건 · 결제당 구매 ${(txns.length/A.orders.length).toFixed(1)}개</div></div>
+    </div>
+    <div class="card"><h2>학생(추정) vs 선생님 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2>
+      <p class="desc">여러 학년 <b>또는</b> 여러 출처 교재를 구매한 순간 <b>선생님</b>으로 분류합니다 — 학생은 자기 학교 교재 한 종만 필요하므로 사실상 확실한 신호입니다. 나머지는 <b>학생(추정)</b>으로 둡니다.</p>
+      <div class="grid2">
+        <div><div style="font-size:13px; font-weight:600; margin-bottom:6px">누적 거래액 비중</div><div class="chart" id="chSeg"></div>
+          <p class="note" style="margin-top:8px">1인 평균 — 선생님 ${won(teachers.length?Math.round(tAmt/teachers.length):0)} (구매 ${teachers.length?Math.round(tN/teachers.length*10)/10:0}개) · 학생(추정) ${won(students.length?Math.round(sAmt/students.length):0)}</p></div>
+        <div><div style="font-size:13px; font-weight:600; margin-bottom:6px">일별 매출 추이 (구분별)</div><div class="chart" id="chSegTrend"></div>
+          <p class="note" style="margin-top:8px">최근 7일 선생님 매출 비중 <b>${pct(w1.t,w1.all)}%</b>${w0.all?` · 이전 7일 ${pct(w0.t,w0.all)}%`:''}</p></div>
+      </div></div>
+    <div class="grid2">
+      <div class="card"><h2>요일별 매출 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">거래일 기준 — 어느 요일에 잘 팔리는지 (막대 색 = 요일, 아래 시간대 차트와 같은 색)</p><div class="chart" id="chDow"></div></div>
+      <div class="card"><h2>시간대별 결제 건수 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">3시간 단위 · <b>결제 건수 기준</b>(묶음결제로 여러 개를 사도 결제 1건) · 요일별 색으로 쌓아 한 요일이 만든 피크인지 구분</p><div class="chart" id="chHour"></div></div>
+    </div>
+    <div>
+      <div class="card"><h2>고객 TOP 10</h2><p class="desc">선생님이 시리즈로 사 가는 패턴이 보이면, 그 시리즈의 다음 과 자료를 우선 제작하세요.</p>
+        <div class="tblwrap"><table>
+        <thead><tr><th>고객</th><th>구분</th><th class="num">구매 갯수</th><th class="num">구매일</th><th class="num">거래액</th><th>구매 자료</th></tr></thead>
+        <tbody>${custs.slice(0,10).map(c=>{
+          const rows=c.buys.map(bb=>`<div><span class="zero" style="font-variant-numeric:tabular-nums">${bb.dt.slice(5,10).replace('-','.')}</span> ${esc(shortName({name:bb.name}))} <span class="zero">· ${won(bb.amount)}</span></div>`);
+          const head=rows.slice(0,4).join(''), rest=rows.slice(4).join('');
+          return `<tr>
+          <td><div class="nm">#${esc(c.cust)}</div><div class="sub">${c.first.slice(5,10).replace('-','.')}${c.n>1?' ~ '+c.last.slice(5,10).replace('-','.'):''}</div></td>
+          <td>${segChip(c)}<div class="sub">${[...c.grades].join('·')}${c.pubs.size?' · '+[...c.pubs].join('·'):''}</div></td>
+          <td class="num">${c.n}개</td>
+          <td class="num">${c.days.size}일${c.days.size>1?`<div class="sub">간격 ${daysBetween(c.first.slice(0,10),c.last.slice(0,10))}일</div>`:''}</td>
+          <td class="num">${won(c.amount)}</td>
+          <td><div class="sub" style="font-size:12.5px">${head}${rest?`<details class="moreb"><summary>외 ${rows.length-4}개 펼치기</summary>${rest}</details>`:''}</div></td></tr>`;}).join('')}</tbody></table></div></div>
+    </div>`;
+  const SEGC={'선생님':'var(--s1)','학생(추정)':'var(--s2)'};
+  shareBar($('#chSeg'), [
+    {label:'선생님', value:tAmt, color:SEGC['선생님'], tipHtml:`<div class="t1">선생님 ${teachers.length}명</div><div class="t2">${won(tAmt)} · 구매 ${tN}개 (${pct(tAmt,total)}%)</div>`},
+    {label:'학생(추정)', value:sAmt, color:SEGC['학생(추정)'], tipHtml:`<div class="t1">학생(추정) ${students.length}명</div><div class="t2">${won(sAmt)} · 구매 ${txns.length-tN}개 (${pct(sAmt,total)}%)</div>`},
+  ]);
+  // 일별 구분 누적 막대
+  const byDay=new Map();
+  txns.forEach(t=>{
+    const day=t.dt.slice(0,10);
+    if(!byDay.has(day)) byDay.set(day,{t:0,s:0});
+    const g=byDay.get(day);
+    if(A.segOf.get(t.cust)==='선생님') g.t+=t.amount; else g.s+=t.amount;
+  });
+  const days=[...byDay.keys()].sort();
+  const pts=[];
+  const cur=new Date(days[0]); const end=new Date(days[days.length-1]);
+  while(cur<=end){
+    const k=cur.toISOString().slice(0,10);
+    const g=byDay.get(k)||{t:0,s:0};
+    pts.push({x:md(k), parts:[
+      {label:'선생님', value:g.t, color:SEGC['선생님'], tipHtml:`<div class="t1">${k} · 선생님</div><div class="t2">${won(g.t)}</div>`},
+      {label:'학생(추정)', value:g.s, color:SEGC['학생(추정)'], tipHtml:`<div class="t1">${k} · 학생(추정)</div><div class="t2">${won(g.s)}</div>`},
+    ], tipHtml:`<div class="t1">${k}</div><div class="t2">선생님 ${won(g.t)}</div><div class="t2">학생(추정) ${won(g.s)}</div>`});
+    cur.setDate(cur.getDate()+1);
+  }
+  stackedColChart($('#chSegTrend'), pts, {legend:[{label:'선생님',color:SEGC['선생님']},{label:'학생(추정)',color:SEGC['학생(추정)']}]});
+  hbar($('#chDow'), dowOrder.map(i=>({label:DOW[i]+'요일', value:dowAmt[i], color:DOWC[i],
+    tipHtml:`<div class="t1">${DOW[i]}요일</div><div class="t2">${won(dowAmt[i])} · 구매 ${dowCnt[i]}개</div>`})));
+  stackedColChart($('#chHour'), binDow.map((row,b)=>({x:`${b*3}시~`,
+    parts:dowOrder.map(i=>({label:DOW[i]+'요일', value:row[i], color:DOWC[i],
+      tipHtml:`<div class="t1">${b*3}시~${b*3+3}시 · ${DOW[i]}요일</div><div class="t2">결제 ${row[i]}건</div>`})),
+    tipHtml:`<div class="t1">${b*3}시~${b*3+3}시 · 결제 ${binCnt[b]}건 (${won(binAmt[b])})</div>${dowOrder.filter(i=>row[i]>0).map(i=>`<div class="t2">${DOW[i]}요일 ${row[i]}건</div>`).join('')||'<div class="t2">거래 없음</div>'}`})),
+    {fmtTick:v=>v+'건', h:210, legend:dowOrder.map(i=>({label:DOW[i], color:DOWC[i]}))});
+}
+function renderRank(A){
+  const p=$('#p-rank');
+  p.innerHTML=`
+    <div class="card"><h2>누적 거래액 TOP 10</h2><p class="desc">가장 많이 벌어 준 자료 (실시간 기준)</p><div class="chart" id="chTop"></div></div>
+    <div class="grid3">
+      <div class="card"><h2>구분별</h2><p class="desc">교과서 / 부교재 / 수능·모의고사 — 누적 매출</p><div class="chart" id="chCat"></div></div>
+      <div class="card"><h2>학년별 · 자료당 매출</h2><p class="desc">등록 자료 수로 정규화 — 어느 학년이 ‘효율’이 좋은지</p><div class="chart" id="chGrade"></div></div>
+      <div class="card"><h2>유형별 · 자료당 매출</h2><p class="desc">등록 자료 수로 정규화 — 총액 착시 없이 비교</p><div class="chart" id="chType"></div></div>
+    </div>
+    <div class="card"><h2>교재별 상세</h2><div id="catTbl"></div></div>
+    <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
+      <p class="desc">파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
+      <div class="tblwrap" id="mxWrap"></div>
+      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">변</span> 미등록 = 제작 후보</span><span class="note">워=워크북 · 변=변형문제 · 본=본문 워크북 · 숫자 열 = 과/강 번호</span></div></div>
+    <div class="card"><h2>공략 지점</h2>
+      <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
+      <div id="targetList"></div></div>`;
+  const items=A.latest.items;
+  const top=[...items].sort((a,b)=>b.rev-a.rev).slice(0,10).filter(i=>i.rev>0);
+  hbar($('#chTop'), top.map(it=>({
+    label:shortName(it), value:it.rev,
+    tipHtml:`<div class="t1">${esc(shortName(it))}</div><div class="t2">${won(it.rev)} · ${it.buyers}개 구매</div>`
+  })));
+  const mk=(key,elId,perItem)=>{
+    let g=groupBy(items,key);
+    if(perItem) g=g.map(r=>({...r,val:r.n?Math.round(r.rev/r.n):0})).sort((a,b)=>b.val-a.val);
+    hbar($(elId), g.map(r=>({label:r.label, value:perItem?r.val:r.rev,
+      tipHtml:`<div class="t1">${esc(r.label)}</div><div class="t2">${perItem?`자료당 ${won(r.val)} · `:''}총 ${won(r.rev)} · 구매 ${r.buyers}개 · 자료 ${r.n}개 (판매 ${r.sold}개, ${r.n?Math.round(r.sold/r.n*100):0}%)</div>`})));
+  };
+  mk('category','#chCat'); mk('grade','#chGrade',true); mk('type','#chType',true);
+  const g=groupBy(items,'pub');
+  $('#catTbl').innerHTML=`<div class="tblwrap"><table>
+    <thead><tr><th>교재</th><th class="num">자료 수</th><th class="num">판매 자료</th><th class="num">구매 갯수</th><th class="num">누적 매출</th><th class="num">자료당 평균</th></tr></thead>
+    <tbody>${g.map(r=>`<tr>
+      <td class="nm">${esc(r.label)}</td>
+      <td class="num">${r.n}</td>
+      <td class="num">${r.sold} <span class="zero">(${r.n?Math.round(r.sold/r.n*100):0}%)</span></td>
+      <td class="num">${r.buyers}</td>
+      <td class="num">${won(r.rev)}</td>
+      <td class="num">${won(r.n?Math.round(r.rev/r.n):0)}</td></tr>`).join('')}</tbody></table></div>`;
+  // 커버리지 매트릭스
+  const series=buildSeries(items);
+  const chAll=Math.max(...series.map(x=>x.chMax),1);
+  let mx=`<table class="mx"><thead><tr><th>시리즈</th><th class="num">누적</th>`;
+  for(let c=1;c<=chAll;c++) mx+=`<th style="text-align:center">${c}</th>`;
+  mx+=`</tr></thead><tbody>`;
+  series.forEach(sr=>{
+    let fams;
+    if(sr.items.some(i=>i.type==='본문 워크북')) fams=[['본문 워크북','본']];
+    else if(sr.category==='교과서') fams=[['워크북','워'],['변형문제','변']];
+    else{
+      fams=[['워크북','워'],['변형문제','변'],['기타','·']].filter(([tp])=>sr.items.some(i=>i.type===tp));
+      if(!fams.length) fams=[['기타','·']];
+    }
+    const catChip=sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
+    mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
+    if(sr.chMax===0){
+      mx+=`<td colspan="${chAll}" style="text-align:left">`;
+      sr.items.forEach(it=>{ mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">단일</span>`; });
+      mx+=`</td>`;
+    }else{
+      for(let c=1;c<=chAll;c++){
+        if(c>sr.chMax){ mx+=`<td></td>`; continue; }
+        mx+=`<td style="text-align:center; white-space:nowrap">`;
+        fams.forEach(([tp,sh])=>{
+          const it=sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c);
+          if(it) mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
+          else mx+=`<span class="b miss" title="미등록 — 제작 후보: ${esc(sr.key)} ${c}${sr.unit} ${tp}">${sh}</span>`;
+        });
+        mx+=`</td>`;
+      }
+    }
+    mx+=`</tr>`;
+  });
+  mx+=`</tbody></table>`;
+  $('#mxWrap').innerHTML=mx;
+  // 공략 지점
+  const tg=buildTargets(A);
+  $('#targetList').innerHTML=tg.length?`<div class="insights">${tg.map((t,i)=>`
+    <div class="insight"><span class="dot"></span><div><b>${i+1}. ${esc(t.title)}</b><div style="color:var(--muted); font-size:12.5px">${t.reason}</div></div></div>`).join('')}</div>`
+    :'<div class="empty">판매 실적이 쌓이면 공략 지점을 제안합니다.</div>';
+}
+function buildSeries(items){
+  const sm=new Map();
+  items.forEach(it=>{
+    const key=seriesKey(it);
+    if(!sm.has(key)) sm.set(key,{key,rev:0,items:[],chMax:0,unit:'과',category:it.category||'교과서'});
+    const sr=sm.get(key);
+    sr.rev+=it.rev; sr.items.push(it);
+    const c=+it.chapter||0; if(c>sr.chMax) sr.chMax=c;
+    if(it.chUnit==='강') sr.unit='강';
+  });
+  return [...sm.values()].sort((a,b)=>b.rev-a.rev);
+}
+function buildTargets(A){
+  const series=buildSeries(A.latest.items);
+  // 고객별 시리즈 최고 도달 과 (정산 거래 기준)
+  const custSeries=new Map();
+  A.txns.forEach(t=>{
+    const c=classify(t.name);
+    const key=seriesKey(c);
+    const ch=+c.chapter||0;
+    if(!custSeries.has(key)) custSeries.set(key,new Map());
+    const m=custSeries.get(key);
+    if(ch>(m.get(t.cust)||0)) m.set(t.cust,ch);
+  });
+  const targets=[];
+  series.filter(sr=>sr.rev>0).forEach(sr=>{
+    const fams=sr.items.some(i=>i.type==='본문 워크북')?['본문 워크북']:(sr.category==='교과서'?['워크북','변형문제']:[...new Set(sr.items.map(i=>i.type))]);
+    fams.forEach(tp=>{
+      const have=new Set(sr.items.filter(i=>i.type===tp).map(i=>+i.chapter||0));
+      const soldSame=sr.items.filter(i=>i.type===tp&&i.rev>0).length;
+      const missing=[];
+      for(let c=1;c<=sr.chMax;c++) if(!have.has(c)) missing.push(c);
+      if(missing.length){
+        targets.push({score:sr.rev+(soldSame?1:0), title:`${sr.key} ${missing.join('·')}${sr.unit} ${tp}`,
+          reason:`시리즈 누적 ${won(sr.rev)}${have.size?` · ${tp} ${[...have].filter(Boolean).sort((a,b)=>a-b).join('·')}${sr.unit} 등록${soldSame?` (판매 중)`:''}`:` · ${tp} 미등록 라인`} — 빈칸 채우기`});
+      }
+    });
+    const m=custSeries.get(sr.key);
+    if(m){
+      const cand=[...m.values()].filter(ch=>ch>0&&ch<sr.chMax).length;
+      if(cand) targets.push({score:sr.rev*0.9, title:`${sr.key} — 이어살 후보 ${cand}명`,
+        reason:`${sr.chMax}${sr.unit} 미만까지 구매한 고객 ${cand}명 · 다음 ${sr.unit} 노출·알림 우선`});
+    }
+    if(sr.items.length>0 && sr.items.every(i=>i.rev>0) && sr.chMax>0){
+      targets.push({score:sr.rev*0.8, title:`${sr.key} ${sr.chMax+1}${sr.unit} 이후 확장`,
+        reason:`등록 자료 전량 판매(전환 100%) — 라인 확장 여력`});
+    }
+  });
+  return targets.sort((a,b)=>b.score-a.score).slice(0,6);
+}
+function renderSettle(A){
+  const p=$('#p-settle');
+  if(!A.txns.length){
+    p.innerHTML=`<div class="card"><h2>정산내역 엑셀이 필요해요</h2>
+      <p class="desc">정산 수익은 월 단위로 지급됩니다. 위 ‘데이터 넣기’에서 파트너센터 정산내역(.xlsx)을 올리면 누적·월별 정산 수익, 대여/소장 비중, 할인, 결제수단, 실시간 대사를 보여드립니다.</p></div>`;
+    return;
+  }
+  const nowM=todaySeoul().slice(0,7);
+  const cm=A.monthly.find(m=>m.m===nowM);
+  const optRows=[A.opt.own,A.opt.rent,...(A.opt.etc.n?[A.opt.etc]:[])];
+  p.innerHTML=`
+    <p class="note" style="margin:0 0 2px">정산은 <b>판매 후 1~3일 뒤 확정</b>됩니다 — 방금 팔린 것은 여기 아직 없습니다 ${lagChip(A)}</p>
+    <div class="kpis" style="margin:0">
+      <div class="tile"><div class="lb">누적 정산 수익</div><div class="v">${won(A.T.net)}</div><div class="d">정산액(수익) 합계 · 구매 ${A.T.n}개 / 결제 ${A.orders.length}건</div></div>
+      <div class="tile"><div class="lb">이번 달 정산 수익</div><div class="v">${won(cm?cm.net:0)}</div><div class="d">${+nowM.slice(5)}월 결제 ${cm?(cm.orders||0):0}건 · 구매 ${cm?cm.n:0}개</div></div>
+      <div class="tile"><div class="lb">정산 반영 거래액</div><div class="v">${won(A.T.amount)}</div><div class="d">${A.T.first.slice(0,10)} ~ ${A.T.last.slice(0,10)}</div></div>
+      <div class="tile"><div class="lb">누적 결제수수료</div><div class="v">${won(A.T.fee)}</div><div class="d">거래액의 ${A.T.amount?(A.T.fee/A.T.amount*100).toFixed(1):0}%</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>월별 정산 수익</h2><p class="desc">정산은 월 단위 지급 — 거래일 기준 월 합계 (이번 달은 확정 전 거래가 더 붙을 수 있음)</p><div class="chart" id="chMonth"></div></div>
+      <div class="card"><h2>대여 vs 소장</h2><p class="desc">판매가격으로 구분 — 소장 비중이 높은 시리즈는 소장가 조정·업셀 여지가 있습니다</p><div class="chart" id="chOpt"></div>
+        <p class="note" style="margin-top:10px">할인 적용 구매 ${A.disc.n}개 · 할인액 합계 ${won(A.disc.sum)} (판매가격−거래액 차액, 캐시/포인트 결제 할인 포함)</p></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>결제수단</h2><p class="desc">거래액 기준</p><div class="chart" id="chPay"></div></div>
+      <div class="card"><h2>실시간 ↔ 정산 대사</h2>
+        <p class="desc">두 소스의 차이는 대부분 ‘아직 정산 확정 전’인 최근 판매분입니다 (정산은 판매 1~3일 후 확정)</p>
+        <div class="tblwrap"><table><tbody>
+          <tr><td>실시간 누적 거래액 (붙여넣기, ${A.latest.date})</td><td class="num">${won(A.tl.rev)}</td></tr>
+          <tr><td>정산 반영 거래액 (엑셀, ~${A.T.last.slice(0,10)})</td><td class="num">${won(A.T.amount)}</td></tr>
+          <tr><td><b>정산 대기 추정액</b></td><td class="num"><b class="${A.tl.rev-A.T.amount>=0?'up':'dn'}">${won(Math.max(0,A.tl.rev-A.T.amount))}</b></td></tr>
+        </tbody></table></div>
+        <p class="note">엑셀에 없는 기간의 판매분이나 부분 붙여넣기(전체 목록 일부만)는 이 추정액을 부풀리거나 줄일 수 있습니다.</p></div>
+    </div>
+    <div class="card"><h2>월별 정산 내역</h2>
+      <div class="tblwrap"><table>
+        <thead><tr><th>월</th><th class="num">결제 건수</th><th class="num">구매 갯수</th><th class="num">거래액</th><th class="num">수수료</th><th class="num">정산 수익</th></tr></thead>
+        <tbody>${[...A.monthly].reverse().map(m=>`<tr><td class="nm">${m.m.replace('-','.')}</td><td class="num">${m.orders||0}건</td><td class="num">${m.n}개</td><td class="num">${won(m.amount)}</td><td class="num">${won(m.fee)}</td><td class="num">${won(m.net)}</td></tr>`).join('')}
+        <tr><td class="nm">합계</td><td class="num">${A.orders.length}건</td><td class="num">${A.T.n}개</td><td class="num">${won(A.T.amount)}</td><td class="num">${won(A.T.fee)}</td><td class="num"><b>${won(A.T.net)}</b></td></tr></tbody></table></div></div>`;
+  colChart($('#chMonth'), A.monthly.map(m=>({x:`${m.m.slice(2,4)}년 ${+m.m.slice(5)}월`, value:m.net,
+    tipHtml:`<div class="t1">${m.m.replace('-','.')}</div><div class="t2">정산 수익 ${won(m.net)} · 결제 ${m.orders||0}건 · 구매 ${m.n}개 · 거래액 ${won(m.amount)}</div>`})));
+  hbar($('#chOpt'), optRows.map(r=>({label:r.label, value:r.amount,
+    tipHtml:`<div class="t1">${esc(r.label)}</div><div class="t2">${won(r.amount)} · 구매 ${r.n}개 (${A.T.n?Math.round(r.n/A.T.n*100):0}%)</div>`})));
+  const pm=new Map();
+  A.txns.forEach(t=>{ if(!pm.has(t.method)) pm.set(t.method,{label:t.method,amount:0,n:0}); const g=pm.get(t.method); g.amount+=t.amount; g.n++; });
+  hbar($('#chPay'), [...pm.values()].sort((a,b)=>b.amount-a.amount).map(r=>({label:r.label, value:r.amount,
+    tipHtml:`<div class="t1">${esc(r.label)}</div><div class="t2">${won(r.amount)} · 구매 ${r.n}개</div>`})));
+}
+function renderTail(A){
+  const p=$('#p-tail');
+  const items=A.latest.items;
+  if(!items.length){ p.innerHTML='<div class="card"><div class="empty">실시간 현황을 붙여넣으면 표시됩니다.</div></div>'; return; }
+  const unsold=items.filter(i=>i.buyers===0);
+  const sorted=[...items].sort((a,b)=>b.rev-a.rev);
+  const top5=sorted.slice(0,5).reduce((s,i)=>s+i.rev,0);
+  const conc=A.tl.rev?Math.round(top5/A.tl.rev*100):0;
+  const tiers=[['미판매',i=>i.buyers===0],['1개',i=>i.buyers===1],['2개',i=>i.buyers===2],['3개 이상',i=>i.buyers>=3]];
+  const regAge=i=>{ // 등록 경과일 ≈ 오늘 - (만료일-365일)
+    if(!i.expiry) return null;
+    const reg=new Date(i.expiry.replace(/\./g,'-')); reg.setDate(reg.getDate()-365);
+    return daysBetween(reg.toISOString().slice(0,10), todaySeoul());
+  };
+  const um=new Map();
+  unsold.forEach(i=>{
+    const k=`${i.grade} · ${i.pub!=='기타'?i.pub:(i.category||'기타')} · ${i.type}`;
+    if(!um.has(k)) um.set(k,{n:0,minAge:9999,maxAge:0});
+    const g=um.get(k); g.n++;
+    const a=regAge(i); if(a!==null){ g.minAge=Math.min(g.minAge,a); g.maxAge=Math.max(g.maxAge,a); }
+  });
+  const ug=[...um.entries()].sort((a,b)=>b[1].n-a[1].n);
+  const em=new Map();
+  items.forEach(i=>{
+    if(!i.expiry) return;
+    if(!em.has(i.expiry)) em.set(i.expiry,{date:i.expiry,dday:i.dday,n:0,rev:0});
+    const g=em.get(i.expiry); g.n++; g.rev+=i.rev;
+    if(i.dday!==null&&(g.dday===null||i.dday<g.dday)) g.dday=i.dday;
+  });
+  const eg=[...em.values()].sort((a,b)=>a.date<b.date?-1:1);
+  const dchip=d=>d===null?'' : d<=30?`<span class="chip crit">⚠ D-${d} 임박</span>` : d<=90?`<span class="chip warn">D-${d} 주의</span>` : `<span class="chip">D-${d}</span>`;
+
+  p.innerHTML=`
+    <div class="kpis" style="margin:0">
+      <div class="tile"><div class="lb">미판매 자료</div><div class="v">${unsold.length}<small>개</small></div><div class="d">전체의 ${Math.round(unsold.length/items.length*100)}%</div></div>
+      <div class="tile"><div class="lb">판매 전환율</div><div class="v">${Math.round(A.tl.sold/items.length*100)}<small>%</small></div><div class="d">${A.tl.sold}개 자료 판매${A.latest.declared&&A.latest.declared>items.length?` · 수집분 ${items.length}개 기준`:''}</div></div>
+      <div class="tile"><div class="lb">상위 5개 집중도</div><div class="v">${conc}<small>%</small></div><div class="d">TOP5가 차지하는 매출 비중</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>판매 갯수 분포</h2><p class="desc">자료들이 몇 개씩 팔렸는지 (구매 갯수 기준)</p><div class="chart" id="chTier"></div></div>
+      <div class="card"><h2>미판매가 몰린 카테고리</h2><p class="desc">노출·미리보기·가격을 점검해 볼 후보</p>
+        <div class="tblwrap"><table><thead><tr><th>카테고리</th><th class="num">미판매 수</th><th class="num">등록 경과</th><th></th></tr></thead>
+        <tbody>${ug.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.n}개</td><td class="num">${v.maxAge?`${v.minAge===v.maxAge?v.minAge:v.minAge+'~'+v.maxAge}일`:'—'}</td><td>${v.maxAge&&v.maxAge<14?'<span class="chip">신상 — 좀 더 지켜보기</span>':'<span class="chip warn">점검 후보</span>'}</td></tr>`).join('')||'<tr><td class="empty" colspan="4">미판매 자료가 없습니다.</td></tr>'}</tbody></table></div>
+        <p class="note">등록일은 라이선스 만료일−365일로 추정. 등록 14일 미만은 판단 유보가 안전합니다.</p></div>
+    </div>
+    <div class="card"><h2>라이선스 만료 타임라인</h2>
+      <p class="desc">만료일이 가까운 순 — 90일 내 만료는 자동으로 표시됩니다</p>
+      <div class="tblwrap"><table><thead><tr><th>만료일</th><th></th><th class="num">자료 수</th><th class="num">누적 매출</th></tr></thead>
+      <tbody>${eg.map(g=>`<tr><td class="nm">${esc(g.date)}</td><td>${dchip(g.dday)}</td><td class="num">${g.n}개</td><td class="num">${won(g.rev)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="note">D-day는 마지막으로 붙여넣은 데이터 기준입니다.</p></div>`;
+  hbar($('#chTier'), tiers.map(([label,fn])=>{
+    const n=items.filter(fn).length;
+    return {label, value:n, tipHtml:`<div class="t1">${label}</div><div class="t2">${n}개 자료</div>`};
+  }), {fmt:v=>v+'개'});
+}
+function renderData(A){
+  const p=$('#p-data');
+  const rows=[...A.snaps].reverse().map(s=>{
+    const t=totals(s);
+    return `<tr><td class="nm">${s.date}</td>
+      <td class="num">${t.n}개</td><td class="num">${t.buyers}개</td><td class="num">${won(t.rev)}</td>
+      <td class="num"><button class="danger" data-del="${s.date}">삭제</button></td></tr>`;
+  }).join('');
+  p.innerHTML=`
+    <div class="card"><h2>스냅샷 (${A.snaps.length}개)</h2>
+      <p class="desc">붙여넣을 때마다 날짜별로 저장됩니다. 잘못 넣은 날짜는 삭제 후 다시 붙여넣으세요.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>수집일</th><th class="num">자료 수</th><th class="num">누적 구매 갯수</th><th class="num">누적 거래액</th><th class="num"></th></tr></thead>
+        <tbody>${rows||'<tr><td class="empty" colspan="5">스냅샷이 없습니다.</td></tr>'}</tbody></table></div></div>
+    <div class="card"><h2>정산 구매 내역 (${A.txns.length}개)</h2>
+      <p class="desc">${A.T.first?`${A.T.first.slice(0,10)} ~ ${A.T.last.slice(0,10)} · 결제 ${A.orders.length}건 · 거래액 ${won(A.T.amount)} · 정산액 ${won(A.T.net)}`:'정산내역 엑셀을 올리면 거래 단위 데이터가 저장됩니다.'}</p>
+      <div class="row" style="margin-top:0">
+        <button class="danger" id="btnTxnClear" ${A.txns.length?'':'disabled'}>정산 거래 전체 삭제</button>
+      </div></div>
+    <div class="card"><h2>팀 공유 (암호화 배포)</h2>
+      <p class="desc">${teamMode?'<b>지금 팀 모드로 보는 중입니다.</b> 이 화면에서의 변경(붙여넣기·엑셀 업로드)은 이 탭에만 머뭅니다 — 팀에 공유하려면 아래에서 새 암호화 파일을 내려받아 저장소의 data.enc.json을 교체하세요.':'현재 데이터를 비밀번호로 <b>AES 암호화</b>한 data.enc.json을 내려받아, 깃헙 저장소의 index.html 옆에 올리면 팀원들은 비밀번호를 입력해야 볼 수 있습니다. 저장소가 공개여도 원문 데이터는 노출되지 않습니다.'}</p>
+      <div class="row" style="margin-top:0">
+        <input type="password" id="pw1" placeholder="비밀번호 (8자 이상 권장)">
+        <input type="password" id="pw2" placeholder="비밀번호 확인">
+        <button class="primary" id="btnEnc">data.enc.json 내려받기</button>
+      </div>
+      <p class="msg" id="encMsg"></p>
+      <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:14px">
+        <div style="font-size:13px; font-weight:600; margin-bottom:3px">깃헙에 바로 올리기 (선택 — 한 번만 설정)</div>
+        <p class="desc">설정해 두면 아래 버튼 하나로 암호화 → 저장소 커밋까지 자동입니다. 토큰은 깃헙 <b>Settings → Developer settings → Fine-grained tokens</b>에서 발급하세요 — 대상을 이 저장소 1개로 제한하고 권한은 <b>Contents: Read and write</b>만 주면 됩니다. 토큰·설정은 이 브라우저에만 저장됩니다 (공용 PC에서는 저장하지 마세요).</p>
+        <div class="row" style="margin-top:0">
+          <input type="text" id="ghRepo" placeholder="아이디/저장소 (예: hanwoori/partner-insight)" style="min-width:250px">
+          <input type="text" id="ghBranch" placeholder="브랜치 (기본 main)" style="width:140px">
+          <input type="password" id="ghToken" placeholder="깃헙 토큰 (github_pat_…)" style="min-width:210px">
+        </div>
+        <div class="row">
+          <label class="note" style="display:flex; align-items:center; gap:6px"><input type="checkbox" id="ghRemPw"> 암호화 비밀번호도 기억</label>
+          <button class="primary" id="btnGhPush">🔒 암호화해서 깃헙에 바로 올리기</button>
+        </div>
+        <p class="msg" id="ghMsg"></p>
+      </div></div>
+    <div class="card"><h2>백업</h2>
+      <p class="desc">데이터는 이 브라우저의 저장 공간에만 있습니다. 브라우저를 바꾸거나 기록을 지우면 사라질 수 있으니 주기적으로 백업하세요.${lsOk?'':' <b style="color:var(--crit)">지금 이 환경에서는 브라우저 저장이 막혀 있어, 탭을 닫으면 데이터가 사라집니다. 백업을 꼭 받아 두세요.</b>'}</p>
+      <div class="row" style="margin-top:0">
+        <button id="btnExport">JSON 내보내기 (복사)</button>
+        <button id="btnImport">JSON 가져오기</button>
+        <button class="danger" id="btnReset">전체 초기화</button>
+      </div>
+      <textarea id="ioBox" placeholder="‘JSON 내보내기’를 누르면 여기에 백업 텍스트가 나타납니다. 복원하려면 백업 텍스트를 붙여넣고 ‘JSON 가져오기’를 누르세요." style="margin-top:10px; min-height:110px"></textarea>
+    </div>`;
+  p.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    const d=b.getAttribute('data-del');
+    if(!confirm(d+' 스냅샷을 삭제할까요?')) return;
+    state.snaps=state.snaps.filter(s=>s.date!==d);
+    saveState(state); renderAll();
+  }));
+  $('#btnTxnClear').addEventListener('click',()=>{
+    if(!confirm('저장된 정산 거래를 모두 삭제할까요?')) return;
+    state.txns=[]; saveState(state); renderAll();
+  });
+  const GH_KEY='pc-insight-gh';
+  let gh={}; try{ gh=JSON.parse(localStorage.getItem(GH_KEY)||'{}'); }catch(e){}
+  if(gh.repo) $('#ghRepo').value=gh.repo;
+  if(gh.branch) $('#ghBranch').value=gh.branch;
+  if(gh.token) $('#ghToken').value=gh.token;
+  if(gh.pw){ $('#ghRemPw').checked=true; $('#pw1').value=gh.pw; $('#pw2').value=gh.pw; }
+  $('#btnGhPush').addEventListener('click',async()=>{
+    const msg=$('#ghMsg');
+    const repo=$('#ghRepo').value.trim(), branch=$('#ghBranch').value.trim()||'main', token=$('#ghToken').value.trim();
+    const p1=$('#pw1').value, p2=$('#pw2').value;
+    if(!subtleOk){ msg.textContent='이 브라우저에서는 암호화를 지원하지 않습니다.'; msg.className='msg err'; return; }
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ msg.textContent='저장소를 "아이디/저장소이름" 형식으로 입력해 주세요.'; msg.className='msg err'; return; }
+    if(!token){ msg.textContent='깃헙 토큰을 입력해 주세요.'; msg.className='msg err'; return; }
+    if(p1.length<4){ msg.textContent='위 칸에 암호화 비밀번호(4자 이상)를 먼저 입력해 주세요.'; msg.className='msg err'; return; }
+    if(p1!==p2){ msg.textContent='비밀번호 확인이 일치하지 않습니다.'; msg.className='msg err'; return; }
+    try{ localStorage.setItem(GH_KEY, JSON.stringify({repo,branch,token,pw:$('#ghRemPw').checked?p1:undefined})); }catch(e){}
+    const hdrs={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+    const url=`https://api.github.com/repos/${repo}/contents/data.enc.json`;
+    try{
+      msg.className='msg'; msg.textContent='암호화 중…';
+      const enc=await encryptState(p1);
+      msg.textContent='깃헙에 올리는 중…';
+      let sha=null;
+      const g=await fetch(`${url}?ref=${encodeURIComponent(branch)}`,{headers:hdrs});
+      if(g.status===200){ sha=(await g.json()).sha; }
+      else if(g.status===401){ throw new Error('토큰이 거부됐어요 — 토큰 값과 만료일을 확인해 주세요.'); }
+      else if(g.status!==404){ const j=await g.json().catch(()=>({})); if(g.status===403) throw new Error('권한이 없어요 — 토큰에 이 저장소의 Contents 쓰기 권한이 있는지 확인해 주세요.'); if(j.message&&/Not Found/i.test(j.message)&&g.status!==404) throw new Error('저장소를 찾을 수 없어요 — 이름과 토큰 대상 저장소를 확인해 주세요.'); }
+      const body={message:`data update ${todaySeoul()}`, content:btoa(enc), branch};
+      if(sha) body.sha=sha;
+      const put=await fetch(url,{method:'PUT',headers:{...hdrs,'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!put.ok){
+        const j=await put.json().catch(()=>({}));
+        if(put.status===401) throw new Error('토큰이 거부됐어요 — 토큰 값과 만료일을 확인해 주세요.');
+        if(put.status===403) throw new Error('권한이 없어요 — 토큰에 Contents: Read and write 권한을 줬는지 확인해 주세요.');
+        if(put.status===404) throw new Error('저장소를 찾을 수 없어요 — "아이디/저장소이름"과 토큰의 대상 저장소를 확인해 주세요.');
+        if(put.status===409) throw new Error('충돌이 났어요 — 잠시 후 한 번 더 눌러 주세요.');
+        throw new Error(j.message||('업로드 실패 ('+put.status+')'));
+      }
+      msg.textContent='✅ 깃헙에 커밋 완료 — 팀 페이지에는 보통 1~2분 내 반영됩니다 (팀원은 새로고침).';
+      msg.className='msg';
+    }catch(e){
+      msg.textContent='업로드 실패: '+e.message+(/Failed to fetch/i.test(e.message)?' (인터넷 연결 또는 광고차단 확장 확인)':'');
+      msg.className='msg err';
+    }
+  });
+  $('#btnEnc').addEventListener('click',async()=>{
+    const msg=$('#encMsg');
+    const p1=$('#pw1').value, p2=$('#pw2').value;
+    if(!subtleOk){ msg.textContent='이 브라우저에서는 암호화를 지원하지 않습니다.'; msg.className='msg err'; return; }
+    if(p1.length<4){ msg.textContent='비밀번호는 4자 이상으로 해주세요.'; msg.className='msg err'; return; }
+    if(p1!==p2){ msg.textContent='비밀번호 확인이 일치하지 않습니다.'; msg.className='msg err'; return; }
+    try{
+      const enc=await encryptState(p1);
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([enc],{type:'application/json'}));
+      a.download='data.enc.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      msg.textContent='data.enc.json 생성 완료 — 깃헙 저장소의 index.html 옆에 업로드(교체)하세요. 팀원 비밀번호가 바뀌면 새로 내려받아 교체하면 됩니다.';
+      msg.className='msg';
+    }catch(e){ msg.textContent='암호화 중 오류: '+e.message; msg.className='msg err'; }
+  });
+  $('#btnExport').addEventListener('click',()=>{
+    const box=$('#ioBox');
+    box.value=JSON.stringify(state);
+    box.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    if(navigator.clipboard) navigator.clipboard.writeText(box.value).catch(()=>{});
+  });
+  $('#btnImport').addEventListener('click',()=>{
+    try{
+      const st=JSON.parse($('#ioBox').value);
+      if(!st||!Array.isArray(st.snaps)) throw 0;
+      st.txns=Array.isArray(st.txns)?st.txns:[];
+      state=st; sortSnaps(); sortTxns(); saveState(state); renderAll();
+      alert('복원 완료: 스냅샷 '+state.snaps.length+'개 · 정산 구매 내역 '+state.txns.length+'개');
+    }catch(e){ alert('올바른 백업 JSON이 아닙니다.'); }
+  });
+  $('#btnReset').addEventListener('click',()=>{
+    if(!confirm('저장된 모든 데이터를 삭제할까요? 되돌릴 수 없습니다.')) return;
+    try{ localStorage.removeItem(LS_KEY); localStorage.removeItem('pc-insight-v1'); }catch(e){}
+    memStore={snaps:[],txns:[]}; state=memStore; saveState(state); location.reload();
+  });
+}
+function renderAll(){
+  const A=computeAll();
+  $('#hdSub').innerHTML=A.latest.items.length?
+    `실시간 수집 <b>${A.latest.date}</b> · 스냅샷 ${A.snaps.length}개 · 자료 ${A.tl.n}${A.latest.declared?`/${A.latest.declared}`:''}개 · 정산 구매 ${A.txns.length}개`:
+    `데이터를 넣으면 리포트가 시작됩니다`;
+  $('#txnCount').textContent=A.txns.length?`저장된 구매 내역 ${A.txns.length}개 (~${A.T.last?A.T.last.slice(0,10):''})`:'';
+  renderKpis(A); renderDelta(A); renderTrend(A); renderTime(A); renderRank(A); renderSettle(A); renderTail(A); renderData(A);
+}
+
+/* ================= 팀 공유 암호화 (AES-GCM + PBKDF2) ================= */
+const subtleOk=typeof crypto!=='undefined'&&crypto.subtle;
+const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
+const unb64=str=>Uint8Array.from(atob(str),c=>c.charCodeAt(0));
+async function deriveKey(pw,salt){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptState(pw){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pw,salt);
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(state)));
+  return JSON.stringify({v:1,app:'pc-insight',salt:b64(salt),iv:b64(iv),ct:b64(ct)});
+}
+async function decryptBlob(blob,pw){
+  const key=await deriveKey(pw,unb64(blob.salt));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(blob.iv)},key,unb64(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function adoptState(st){
+  st.txns=Array.isArray(st.txns)?st.txns:[];
+  st.snaps=Array.isArray(st.snaps)?st.snaps:[];
+  st.snaps.forEach(sn=>sn.items.forEach(it=>Object.assign(it,classify(it.name))));
+  state=st; sortSnaps(); sortTxns();
+}
+function showGate(blob){
+  return new Promise(resolve=>{
+    const g=document.createElement('div');
+    g.id='gate';
+    g.innerHTML=`<div class="card">
+      <div style="font-size:34px; margin-bottom:6px">📊</div>
+      <h2>파트너센터 인사이트</h2>
+      <p class="desc">팀 대시보드입니다. 비밀번호를 입력하면 데이터가 이 브라우저 안에서 복호화됩니다.</p>
+      <input type="password" id="gatePw" placeholder="비밀번호" autofocus>
+      <button class="primary" id="gateBtn">열기</button>
+      <p class="msg err" id="gateMsg"></p></div>`;
+    document.body.appendChild(g);
+    const tryPw=async(pw,silent)=>{
+      if(!pw) return;
+      try{
+        const st=await decryptBlob(blob,pw);
+        try{ sessionStorage.setItem('pc-team-pw',pw); }catch(e){}
+        adoptState(st); g.remove(); resolve(true);
+      }catch(e){
+        if(!silent){ document.getElementById('gateMsg').textContent='비밀번호가 맞지 않습니다.'; }
+      }
+    };
+    g.querySelector('#gateBtn').addEventListener('click',()=>tryPw(g.querySelector('#gatePw').value));
+    g.querySelector('#gatePw').addEventListener('keydown',e=>{ if(e.key==='Enter') tryPw(g.querySelector('#gatePw').value); });
+    let saved=null;
+    try{ saved=sessionStorage.getItem('pc-team-pw'); }catch(e){}
+    if(saved) tryPw(saved,true);
+  });
+}
+
+/* ================= tabs & inputs ================= */
+const tabs=[...document.querySelectorAll('.tab')];
+function selectTab(name){
+  tabs.forEach(b=>b.setAttribute('aria-selected', b.dataset.p===name?'true':'false'));
+  document.querySelectorAll('.panel').forEach(s=>s.classList.toggle('on', s.id==='p-'+name));
+}
+tabs.forEach(b=>b.addEventListener('click',()=>{ selectTab(b.dataset.p); renderAll(); }));
+
+$('#snapDate').value=todaySeoul();
+$('#btnParse').addEventListener('click',()=>{
+  const msg=$('#pasteMsg');
+  const txt=$('#pasteBox').value;
+  const date=$('#snapDate').value||todaySeoul();
+  const {items, declared}=parseReport(txt);
+  if(!items.length){
+    msg.textContent='자료를 인식하지 못했어요. 자료 ID(긴 숫자)가 포함되도록 표 전체를 복사해 주세요.';
+    msg.className='msg err'; return;
+  }
+  let snap=state.snaps.find(s=>s.date===date);
+  let added=0, updated=0;
+  if(!snap){ snap={date, items:[]}; state.snaps.push(snap); }
+  if(declared) snap.declared=declared;
+  const m=itemMap(snap);
+  items.forEach(it=>{
+    if(m.has(it.id)){ Object.assign(m.get(it.id), it); updated++; }
+    else{ snap.items.push(it); added++; }
+  });
+  sortSnaps(); saveState(state);
+  $('#pasteBox').value='';
+  const gotAll=snap.declared && snap.items.length>=snap.declared;
+  const partial=snap.declared && snap.items.length<snap.declared;
+  msg.textContent=`${date} 스냅샷에 반영: 자료 ${items.length}개 (추가 ${added} · 갱신 ${updated})`
+    +(gotAll?` — 전체 ${snap.declared}개 수집 완료`:'')
+    +(partial?` — ⚠ 목록 총 ${snap.declared}개 중 ${snap.items.length}개만 수집됨. 나머지 페이지도 같은 날짜로 이어서 붙여넣어 주세요.`:'')
+    +(lsOk?'':' — 주의: 브라우저 저장이 막혀 있어 이 탭에서만 유지됩니다');
+  msg.className=partial?'msg err':'msg';
+  selectTab(state.snaps.length>1?'delta':'trend');
+  renderAll();
+});
+
+$('#xlsFile').addEventListener('change',ev=>{
+  const msg=$('#xlsMsg');
+  const f=ev.target.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){
+    msg.textContent='엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침해 주세요.';
+    msg.className='msg err'; return;
+  }
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      let txns=null;
+      for(const sn of wb.SheetNames){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true});
+        txns=parseSettlementRows(rows);
+        if(txns&&txns.length) break;
+      }
+      if(!txns||!txns.length){
+        msg.textContent='정산내역 형식을 인식하지 못했어요. ‘정산ID / 거래일시’ 열이 있는 파일인지 확인해 주세요.';
+        msg.className='msg err'; return;
+      }
+      const byId=new Map(state.txns.map(t=>[t.tid,t]));
+      let added=0, updated=0;
+      txns.forEach(t=>{
+        const ex=byId.get(t.tid);
+        if(ex){ Object.assign(ex,t); updated++; }
+        else{ state.txns.push(t); byId.set(t.tid,t); added++; }
+      });
+      sortTxns(); saveState(state);
+      msg.textContent=`구매 내역 ${txns.length}개 읽음 · 신규 ${added} · 갱신 ${updated} (환불·상태 변경도 반영됩니다)`;
+      msg.className='msg';
+      selectTab('time');
+      renderAll();
+    }catch(err){
+      msg.textContent='파일을 읽는 중 오류가 났습니다: '+err.message;
+      msg.className='msg err';
+    }
+  };
+  rd.readAsArrayBuffer(f);
+  ev.target.value='';
+});
+
+/* ================= boot ================= */
+(async()=>{
+  let blob=null;
+  try{
+    const r=await fetch('data.enc.json',{cache:'no-store'});
+    if(r&&r.ok){ const j=await r.json(); if(j&&j.v===1&&j.salt&&j.iv&&j.ct) blob=j; }
+  }catch(e){}
+  if(blob&&subtleOk){
+    teamMode=true;
+    await showGate(blob); // 복호화 성공 시 state 교체
+  }
+  selectTab(state.snaps.length>1?'delta':'trend');
+  renderAll();
+})();
+let rz;
+addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(renderAll,200); });
+</script>
+</body>
+</html>
