@@ -110,14 +110,14 @@ button.danger{color:var(--crit)}
 .tile .d{font-size:13px; margin-top:3px; color:var(--muted)}
 .tile .d.up{color:var(--good); font-weight:600}
 
-.tabs{display:flex; gap:2px; border-bottom:1px solid var(--line); margin:6px 0 20px; overflow-x:auto}
+.tabs{display:flex; gap:6px; border-bottom:1px solid var(--line); margin:6px 0 20px; padding-bottom:10px; overflow-x:auto}
 .tab{
-  border:none; background:none; border-radius:6px 6px 0 0;
-  padding:9px 13px; font-size:14px; font-weight:500; color:var(--ink-2);
-  border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;
+  border:1px solid var(--line); background:var(--surface-2); border-radius:8px;
+  padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink-2);
+  white-space:nowrap; cursor:pointer; transition:background .12s, color .12s;
 }
-.tab:hover{background:var(--accent-soft)}
-.tab[aria-selected=true]{color:var(--ink); font-weight:600; border-bottom-color:var(--accent)}
+.tab:hover{background:var(--accent-soft); color:var(--ink); border-color:transparent}
+.tab[aria-selected=true], .tab[aria-selected=true]:hover{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
 .panel{display:none}
 .panel.on{display:flex; flex-direction:column; gap:16px}
 
