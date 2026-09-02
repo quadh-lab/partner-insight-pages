@@ -138,6 +138,21 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:
 td .nm{font-weight:500}
 td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .tblwrap{overflow-x:auto}
+
+/* 피벗(정산 탭) — 엑셀 피벗과 같은 행 계층: 고객ID › 거래일시 › 상세 */
+.pvbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 12px}
+.pvbar select, .pvbar input{font:inherit; font-size:12.5px; padding:6px 9px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink)}
+.pvbar input{min-width:150px}
+.pvbar button{font-size:12.5px; padding:6px 11px}
+.pv td{vertical-align:top}
+.pv .pv-r{cursor:pointer}
+.pv .pv-r:hover td{background:var(--surface-2)}
+.pv .pv-t{display:inline-block; width:15px; color:var(--ink-2); font-size:12px; vertical-align:0}
+.pv .pv-l1 td:first-child{font-weight:500}
+.pv .pv-l2 td:first-child{padding-left:28px; font-variant-numeric:tabular-nums}
+.pv .pv-l3 td{background:var(--surface-2)}
+.pv .pv-l3 td:first-child{padding-left:51px}
+.pv .pv-tot td{border-top:2px solid var(--baseline); border-bottom:none}
 .up{color:var(--good); font-weight:600}
 .dn{color:var(--crit); font-weight:600}
 .tile .d.down{color:var(--crit); font-weight:600}
@@ -1278,6 +1293,98 @@ function buildTargets(A){
   });
   return targets.sort((a,b)=>b.score-a.score).slice(0,6);
 }
+/* ===== 정산 피벗 =====
+   엑셀 피벗(행: 고객ID › 거래일시, 값: 거래액 합계)과 같은 구조.
+   행을 클릭하면 한 단계씩 펼쳐지고, 거래일시를 펼치면 엑셀에서 값을 더블클릭했을 때처럼
+   그 결제에 묶인 원본 레코드가 나온다. 펼침 상태는 재렌더(탭 이동·창 크기 변경) 후에도 유지한다. */
+const PV={open:new Set(), sort:'amount', q:''};
+function pivotData(A){
+  const cm=new Map();
+  A.txns.forEach(t=>{
+    if(!cm.has(t.cust)) cm.set(t.cust,{cust:t.cust,amount:0,n:0,first:t.dt,last:t.dt,dm:new Map()});
+    const c=cm.get(t.cust);
+    c.amount+=t.amount; c.n++;
+    if(t.dt<c.first) c.first=t.dt;
+    if(t.dt>c.last) c.last=t.dt;
+    if(!c.dm.has(t.dt)) c.dm.set(t.dt,{dt:t.dt,amount:0,n:0,rows:[]});
+    const d=c.dm.get(t.dt); d.amount+=t.amount; d.n++; d.rows.push(t);
+  });
+  let list=[...cm.values()].map(c=>({...c, days:[...c.dm.values()].sort((a,b)=>b.dt.localeCompare(a.dt))}));
+  const q=PV.q.trim().toLowerCase();
+  if(q) list=list.filter(c=>c.cust.toLowerCase().includes(q));
+  if(PV.sort==='cust') list.sort((a,b)=>a.cust.localeCompare(b.cust,'ko',{numeric:true}));
+  else if(PV.sort==='recent') list.sort((a,b)=>b.last.localeCompare(a.last));
+  else list.sort((a,b)=>b.amount-a.amount);
+  return list;
+}
+const pvDt=d=>d.slice(0,16).replace(/-/g,'.');
+function pivotBody(A){
+  const list=pivotData(A);
+  let h='';
+  for(const c of list){
+    const ck='c|'+c.cust, co=PV.open.has(ck);
+    h+=`<tr class="pv-r pv-l1" data-k="${esc(ck)}">
+      <td><span class="pv-t">${co?'▾':'▸'}</span><span class="nm" style="display:inline">#${esc(c.cust)}</span>
+        <div class="sub" style="margin-left:15px">${A.segOf.get(c.cust)==='선생님'?'<span class="chip good">선생님</span>':'<span class="chip">학생(추정)</span>'} 결제 ${c.days.length}회 · ${pvDt(c.first).slice(5)}${c.days.length>1?' ~ '+pvDt(c.last).slice(5):''}</div></td>
+      <td class="num">${c.n}개</td><td class="num">${won(c.amount)}</td></tr>`;
+    if(!co) continue;
+    for(const d of c.days){
+      const dk='d|'+c.cust+'|'+d.dt, dopen=PV.open.has(dk);
+      h+=`<tr class="pv-r pv-l2" data-k="${esc(dk)}">
+        <td><span class="pv-t">${dopen?'▾':'▸'}</span>${pvDt(d.dt)}</td>
+        <td class="num">${d.n}개</td><td class="num">${won(d.amount)}</td></tr>`;
+      if(!dopen) continue;
+      for(const t of d.rows){
+        h+=`<tr class="pv-l3"><td><div>${esc(t.name)}</div>
+          <div class="sub">정산ID ${esc(t.tid)} · ${esc(t.status)} · ${esc(t.method)} · 판매가격 ${won(t.price)} · 수수료 ${won(t.fee)} · 정산액 ${won(t.net)}</div></td>
+          <td class="num">1개</td><td class="num">${won(t.amount)}</td></tr>`;
+      }
+    }
+  }
+  if(!list.length) return '<tr><td colspan="3" class="zero">검색과 일치하는 고객이 없습니다.</td></tr>';
+  const tot=list.reduce((s,c)=>s+c.amount,0), totN=list.reduce((s,c)=>s+c.n,0);
+  h+=`<tr class="pv-tot"><td><b>총합계</b> <span class="zero">고객 ${list.length}명${PV.q?' (검색 결과)':''}</span></td>
+    <td class="num"><b>${totN}개</b></td><td class="num"><b>${won(tot)}</b></td></tr>`;
+  return h;
+}
+function pivotCard(A){
+  return `<div class="card"><h2>피벗 — 고객별 · 거래일시별 거래액</h2>
+    <p class="desc">엑셀 피벗과 같은 구조입니다 — 행 <b>고객ID › 거래일시</b>, 값 <b>거래액(원) 합계</b>.
+      행을 클릭하면 한 단계씩 펼쳐지고, 거래일시를 펼치면 엑셀에서 값을 더블클릭했을 때처럼 그 결제의 원본 내역이 나옵니다.</p>
+    <div class="pvbar">
+      <select id="pvSort">
+        <option value="amount">거래액 많은 순</option>
+        <option value="recent">최근 거래 순</option>
+        <option value="cust">고객ID 순</option>
+      </select>
+      <button id="pvAll">모두 펼치기</button>
+      <input type="text" id="pvQ" placeholder="고객ID 검색">
+    </div>
+    <div class="tblwrap"><table class="pv">
+      <thead><tr><th>행 레이블</th><th class="num">구매 갯수</th><th class="num">거래액 합계</th></tr></thead>
+      <tbody id="pvBody">${pivotBody(A)}</tbody></table></div></div>`;
+}
+function pivotWire(p,A){
+  const body=p.querySelector('#pvBody'); if(!body) return;
+  const sel=p.querySelector('#pvSort'), q=p.querySelector('#pvQ'), all=p.querySelector('#pvAll');
+  sel.value=PV.sort; q.value=PV.q;
+  const syncAll=()=>{ all.textContent=PV.open.size?'모두 접기':'모두 펼치기'; };
+  const refresh=()=>{ body.innerHTML=pivotBody(A); syncAll(); };
+  syncAll();
+  body.addEventListener('click',e=>{
+    const tr=e.target.closest('tr[data-k]'); if(!tr) return;
+    const k=tr.dataset.k;
+    if(PV.open.has(k)) PV.open.delete(k); else PV.open.add(k);
+    refresh();
+  });
+  sel.addEventListener('change',()=>{ PV.sort=sel.value; refresh(); });
+  q.addEventListener('input',()=>{ PV.q=q.value; refresh(); });
+  all.addEventListener('click',()=>{
+    if(PV.open.size) PV.open.clear();
+    else pivotData(A).forEach(c=>PV.open.add('c|'+c.cust));
+    refresh();
+  });
+}
 function renderSettle(A){
   const p=$('#p-settle');
   if(!A.txns.length){
@@ -1316,7 +1423,9 @@ function renderSettle(A){
       <div class="tblwrap"><table>
         <thead><tr><th>월</th><th class="num">결제 건수</th><th class="num">구매 갯수</th><th class="num">거래액</th><th class="num">수수료</th><th class="num">정산 수익</th></tr></thead>
         <tbody>${[...A.monthly].reverse().map(m=>`<tr><td class="nm">${m.m.replace('-','.')}</td><td class="num">${m.orders||0}건</td><td class="num">${m.n}개</td><td class="num">${won(m.amount)}</td><td class="num">${won(m.fee)}</td><td class="num">${won(m.net)}</td></tr>`).join('')}
-        <tr><td class="nm">합계</td><td class="num">${A.orders.length}건</td><td class="num">${A.T.n}개</td><td class="num">${won(A.T.amount)}</td><td class="num">${won(A.T.fee)}</td><td class="num"><b>${won(A.T.net)}</b></td></tr></tbody></table></div></div>`;
+        <tr><td class="nm">합계</td><td class="num">${A.orders.length}건</td><td class="num">${A.T.n}개</td><td class="num">${won(A.T.amount)}</td><td class="num">${won(A.T.fee)}</td><td class="num"><b>${won(A.T.net)}</b></td></tr></tbody></table></div></div>
+    ${pivotCard(A)}`;
+  pivotWire(p,A);
   colChart($('#chMonth'), A.monthly.map(m=>({x:`${m.m.slice(2,4)}년 ${+m.m.slice(5)}월`, value:m.net,
     tipHtml:`<div class="t1">${m.m.replace('-','.')}</div><div class="t2">정산 수익 ${won(m.net)} · 결제 ${m.orders||0}건 · 구매 ${m.n}개 · 거래액 ${won(m.amount)}</div>`})));
   hbar($('#chOpt'), optRows.map(r=>({label:r.label, value:r.amount,
