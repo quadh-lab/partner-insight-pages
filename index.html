@@ -155,6 +155,21 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .insight{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
 .insight .dot{flex:none; width:6px; height:6px; border-radius:99px; background:var(--accent); margin-top:7px}
 .insight b{font-weight:600}
+.insight .ins-hd{line-height:1.5}
+.insight .ins-sb{font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:2px}
+.insight.ins-act .dot{background:var(--warn)}
+.insight.ins-struct .dot{background:var(--baseline)}
+.ins-lead{border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:0 8px 8px 0; padding:11px 14px; margin:0 0 16px}
+.ins-lead .ins-hd{font-size:15px; font-weight:600; line-height:1.5; letter-spacing:-.01em}
+.ins-lead .ins-sb{font-size:12.5px; color:var(--ink-2); line-height:1.55; margin-top:3px}
+.ins-group+.ins-group{margin-top:16px}
+.ins-gh{font-size:11.5px; font-weight:700; color:var(--muted); letter-spacing:.05em; margin-bottom:8px}
+.ins-more{margin-top:9px}
+.ins-more>summary{cursor:pointer; font-size:12.5px; color:var(--accent); list-style:none; padding:2px 0}
+.ins-more>summary::-webkit-details-marker{display:none}
+.ins-more>summary::before{content:'▾ '}
+.ins-more[open]>summary::before{content:'▴ '}
+.ins-more>.insights{margin-top:9px}
 
 .chart{width:100%}
 .chart svg{display:block; width:100%; height:auto}
@@ -866,13 +881,14 @@ function renderDelta(A){
   p.innerHTML=html;
 }
 function buildInsights(A){
-  const out=[];
+  // 각 인사이트에 그룹을 붙인다 — change(이번에 달라진 것) / act(먼저 손댈 곳) / struct(구조적 사실)
+  const out=[]; const add=(g,t)=>out.push({g,t});
   const {tl,tp,deltas,latest,momentum,txns,T}=A;
   if(tp){
     const dRev=tl.rev-tp.rev;
     const top=deltas.filter(d=>d.dRev>0).sort((a,b)=>b.dRev-a.dRev)[0];
-    if(dRev>0&&top) out.push(`전 스냅샷 대비 매출이 <b>+${won(dRev)}</b> 늘었고, 그중 <b>${esc(shortName(top.it))}</b>이 +${won(top.dRev)}로 가장 컸습니다.`);
-    else if(dRev===0) out.push(`전 스냅샷 이후 새 판매가 없습니다.`);
+    if(dRev>0&&top) add('change',`전 스냅샷 대비 매출이 <b>+${won(dRev)}</b> 늘었습니다 — 그중 <b>${esc(shortName(top.it))}</b>이 +${won(top.dRev)}로 가장 컸습니다.`);
+    else if(dRev===0) add('change',`전 스냅샷 이후 새 판매가 없습니다.`);
   }
   if(txns.length){
     // 요일/시간 피크
@@ -884,47 +900,71 @@ function buildInsights(A){
     });
     const bi=dow.indexOf(Math.max(...dow));
     const bh=Object.entries(hour).sort((a,b)=>b[1]-a[1])[0];
-    out.push(`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다${txns.length<50?` (구매 표본 ${txns.length}개 — 아직 참고용)`:''}.`);
+    add('struct',`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다${txns.length<50?` (구매 표본 ${txns.length}개, 아직 참고용)`:''}.`);
     // 재구매
-    if(A.orders.length) out.push(`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
+    if(A.orders.length) add('struct',`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
     const revisit=A.custs.filter(c=>c.days.size>=2).length;
     const multi=A.custs.filter(c=>c.n>1).length;
-    if(A.custs.length) out.push(`고객 ${A.custs.length}명 중 <b>${multi}명</b>이 한 번에 여러 자료를 묶어 샀고, <b>재방문</b> 고객은 <b>${revisit}명</b>입니다 — 묶음 경향이 강하니 같은 시리즈의 다음 ${'과'}를 미리 채워두는 효과가 큽니다.`);
+    if(A.custs.length) add('struct',`고객 ${A.custs.length}명 중 <b>${multi}명</b>이 한 번에 여러 자료를 묶어 샀고, <b>재방문</b> 고객은 <b>${revisit}명</b>입니다 — 묶음 경향이 강하니 같은 시리즈의 다음 ${'과'}를 미리 채워두는 효과가 큽니다.`);
     const tc=A.custs.filter(c=>c.seg==='선생님');
     if(A.custs.length&&tc.length){
       const ta=tc.reduce((s,c)=>s+c.amount,0);
-      out.push(`<b>선생님</b> 고객 ${tc.length}명(${Math.round(tc.length/A.custs.length*100)}%)이 매출의 <b>${Math.round(ta/(T.amount||1)*100)}%</b>를 차지합니다 — 여러 학년·여러 교재를 한 번에 사는 고객이라, 팔리는 시리즈의 빈 과·빈 유형을 채울수록 이 층의 객단가가 커집니다.`);
+      add('struct',`<b>선생님</b> 고객 ${tc.length}명(${Math.round(tc.length/A.custs.length*100)}%)이 매출의 <b>${Math.round(ta/(T.amount||1)*100)}%</b>를 차지합니다 — 여러 학년·여러 교재를 한 번에 사는 고객이라, 팔리는 시리즈의 빈 과·빈 유형을 채울수록 이 층의 객단가가 커집니다.`);
     }
-    if(tl.rev>T.amount) out.push(`실시간 누적 ${wonC(tl.rev)} 중 정산에 반영된 금액은 ${wonC(T.amount)} — 약 <b>${won(tl.rev-T.amount)}</b>이 정산 확정 대기 중으로 추정됩니다.`);
+    if(tl.rev>T.amount) add('struct',`정산에 아직 반영되지 않은 금액이 약 <b>${won(tl.rev-T.amount)}</b> 있습니다 — 실시간 누적 ${wonC(tl.rev)} 중 정산 반영분이 ${wonC(T.amount)}입니다.`);
   }
   const byPub=groupBy(latest.items,'pub');
   if(byPub.length&&tl.rev>0){
     const t=byPub[0];
-    out.push(`누적 매출 1위 교재는 <b>${esc(t.label)}</b> — 전체의 ${Math.round(t.rev/tl.rev*100)}% (${won(t.rev)}).`);
+    add('struct',`누적 매출 1위 교재는 <b>${esc(t.label)}</b> — 전체의 ${Math.round(t.rev/tl.rev*100)}% (${won(t.rev)}).`);
   }
   const tg=buildTargets(A);
-  if(tg.length) out.push(`가장 유력한 공략 지점: <b>${esc(tg[0].title)}</b> — ${tg[0].reason} (순위 전체는 ‘랭킹·공략지점’ 탭).`);
+  if(tg.length) add('act',`가장 유력한 공략 지점: <b>${esc(tg[0].title)}</b> — ${tg[0].reason} (순위 전체는 ‘랭킹·공략지점’ 탭).`);
   const acc=momentum.filter(m=>m.tag==='가속').sort((a,b)=>(b.r7||0)-(a.r7||0));
-  if(acc.length) out.push(`최근 7일 판매가 <b>가속</b> 중: ${acc.slice(0,3).map(m=>esc(shortName(m.it))).join(', ')}${acc.length>3?` 외 ${acc.length-3}개`:''}.`);
+  if(acc.length) add('change',`최근 7일 판매가 <b>가속</b> 중: ${acc.slice(0,3).map(m=>esc(shortName(m.it))).join(', ')}${acc.length>3?` 외 ${acc.length-3}개`:''}.`);
   const nw=momentum.filter(m=>m.tag==='신규'||m.tag==='재개');
-  if(nw.length) out.push(`최근 7일에 판매가 새로 시작되거나 재개된 자료가 <b>${nw.length}개</b> 있습니다.`);
+  if(nw.length) add('change',`최근 7일에 판매가 새로 시작되거나 재개된 자료가 <b>${nw.length}개</b> 있습니다.`);
   const stale=momentum.filter(m=>m.tag==='정체').length;
-  if(stale) out.push(`판매 이력이 있지만 최근 판매가 끊긴 자료가 <b>${stale}개</b> 있습니다.`);
-  if(tl.n) out.push(`${tl.n}개 중 ${tl.sold}개 판매(전환 ${Math.round(tl.sold/tl.n*100)}%) — 미판매 ${tl.n-tl.sold}개는 ‘롱테일·만료’ 탭에서 확인하세요.`);
+  if(stale) add('act',`판매 이력이 있지만 최근 판매가 끊긴 자료가 <b>${stale}개</b> 있습니다.`);
+  if(tl.n) add('struct',`${tl.n}개 중 ${tl.sold}개 판매(전환 ${Math.round(tl.sold/tl.n*100)}%) — 미판매 ${tl.n-tl.sold}개는 ‘롱테일·만료’ 탭에서 확인하세요.`);
   const sorted=[...latest.items].sort((a,b)=>b.rev-a.rev);
   const top5=sorted.slice(0,5).reduce((s,i)=>s+i.rev,0);
-  if(tl.rev>0) out.push(`상위 5개 자료가 전체 매출의 <b>${Math.round(top5/tl.rev*100)}%</b>를 차지합니다.`);
+  if(tl.rev>0) add('struct',`상위 5개 자료가 전체 매출의 <b>${Math.round(top5/tl.rev*100)}%</b>를 차지합니다.`);
   const exp=latest.items.filter(i=>i.dday!==null&&i.dday<=90);
-  if(exp.length) out.push(`<b>${exp.length}개</b> 자료의 라이선스가 90일 내에 만료됩니다.`);
+  if(exp.length) add('act',`<b>${exp.length}개</b> 자료의 라이선스가 90일 내에 만료됩니다.`);
   return out;
+}
+// 인사이트 문장은 대부분 '사실 — 해석/처방' 구조라, 첫 ' — ' 에서 잘라 두 줄로 보여준다.
+function splitIns(t){ const i=t.indexOf(' — '); return i<0?[t,'']:[t.slice(0,i), t.slice(i+3)]; }
+function insItem(o){
+  const [hd,sb]=splitIns(o.t);
+  return `<div class="insight ins-${o.g}"><span class="dot"></span><div><div class="ins-hd">${hd}</div>${sb?`<div class="ins-sb">${sb}</div>`:''}</div></div>`;
+}
+const INS_GROUPS=[['change','이번에 달라진 것'],['act','먼저 손댈 곳'],['struct','구조적 사실']];
+function insHTML(list){
+  if(!list.length) return '<div class="empty">데이터를 넣으면 인사이트가 생성됩니다.</div>';
+  const ord={change:0,act:1,struct:2};
+  const s=[...list].sort((a,b)=>ord[a.g]-ord[b.g]);   // 정렬은 안정적 — 그룹 안 순서는 생성 순 유지
+  const lead=s[0], rest=s.slice(1);
+  const [lh,ls]=splitIns(lead.t);
+  let h=`<div class="ins-lead"><div class="ins-hd">${lh}</div>${ls?`<div class="ins-sb">${ls}</div>`:''}</div>`;
+  for(const [g,label] of INS_GROUPS){
+    const it=rest.filter(x=>x.g===g); if(!it.length) continue;
+    const head=it.slice(0,3), more=it.slice(3);
+    h+=`<div class="ins-group"><div class="ins-gh">${label}</div>`
+      +`<div class="insights">${head.map(insItem).join('')}</div>`
+      +(more.length?`<details class="ins-more"><summary>${more.length}개 더 보기</summary><div class="insights">${more.map(insItem).join('')}</div></details>`:'')
+      +`</div>`;
+  }
+  return h;
 }
 function renderTrend(A){
   const p=$('#p-trend');
   const ins=buildInsights(A);
   const useTxn=A.txns.length>0;
   let html=`<div class="card"><h2>자동 인사이트</h2>
-    <p class="desc">데이터가 쌓일수록 변동 기반 인사이트가 정교해집니다.</p>
-    <div class="insights">${ins.map(s=>`<div class="insight"><span class="dot"></span><div>${s}</div></div>`).join('')||'<div class="empty">데이터를 넣으면 인사이트가 생성됩니다.</div>'}</div></div>`;
+    <p class="desc">가장 중요한 한 줄을 먼저 보여주고, 나머지는 변화·조치·구조로 묶었습니다. 데이터가 쌓일수록 변동 기반 인사이트가 정교해집니다.</p>
+    ${insHTML(ins)}</div>`;
   html+=`<div class="grid2">
     <div class="card"><h2>일별 매출 ${useTxn?lagChip(A):'<span class="chip">스냅샷 기준</span>'}</h2><p class="desc">${useTxn?'거래일 기준 확정 매출 — <b>오늘·어제 판매는 아직 이 차트에 없습니다.</b> 실시간 수치는 위 KPI(붙여넣기 기준)를 보세요.':'스냅샷 사이에 늘어난 매출'}</p><div class="chart" id="chDaily"></div></div>
     <div class="card"><h2>${useTxn?'최근 7일 이동 매출':'누적 거래액 추이'}</h2><p class="desc">${useTxn?'각 날짜 기준 직전 7일 매출 합 — 선이 오르면 판매 속도가 붙는 중입니다. 정산 지연 탓에 마지막 1~3일 구간은 실제보다 낮게 보일 수 있어요':'스냅샷별 누적 매출 합계'}</p><div class="chart" id="chCum"></div></div>
