@@ -144,7 +144,10 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .pvbar select, .pvbar input{font:inherit; font-size:12.5px; padding:6px 9px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink)}
 .pvbar input{min-width:150px}
 .pvbar button{font-size:12.5px; padding:6px 11px}
-.pv td{vertical-align:top}
+.pv td{padding:5px 10px; vertical-align:baseline; line-height:1.45}
+.pv th{padding-top:6px; padding-bottom:6px}
+.pv .chip{font-size:11px; padding:1px 6px; margin-left:6px; vertical-align:1px}
+.pv .pv-s{color:var(--muted); font-size:12px; margin-left:7px}
 .pv .pv-r{cursor:pointer}
 .pv .pv-r:hover td{background:var(--surface-2)}
 .pv .pv-t{display:inline-block; width:15px; color:var(--ink-2); font-size:12px; vertical-align:0}
@@ -1324,8 +1327,7 @@ function pivotBody(A){
   for(const c of list){
     const ck='c|'+c.cust, co=PV.open.has(ck);
     h+=`<tr class="pv-r pv-l1" data-k="${esc(ck)}">
-      <td><span class="pv-t">${co?'▾':'▸'}</span><span class="nm" style="display:inline">#${esc(c.cust)}</span>
-        <div class="sub" style="margin-left:15px">${A.segOf.get(c.cust)==='선생님'?'<span class="chip good">선생님</span>':'<span class="chip">학생(추정)</span>'} 결제 ${c.days.length}회 · ${pvDt(c.first).slice(5)}${c.days.length>1?' ~ '+pvDt(c.last).slice(5):''}</div></td>
+      <td><span class="pv-t">${co?'▾':'▸'}</span><b>#${esc(c.cust)}</b>${A.segOf.get(c.cust)==='선생님'?'<span class="chip good">선생님</span>':'<span class="chip">학생(추정)</span>'}<span class="pv-s">결제 ${c.days.length}회 · ${pvDt(c.first).slice(5)}${c.days.length>1?' ~ '+pvDt(c.last).slice(5):''}</span></td>
       <td class="num">${c.n}개</td><td class="num">${won(c.amount)}</td></tr>`;
     if(!co) continue;
     for(const d of c.days){
@@ -1335,8 +1337,7 @@ function pivotBody(A){
         <td class="num">${d.n}개</td><td class="num">${won(d.amount)}</td></tr>`;
       if(!dopen) continue;
       for(const t of d.rows){
-        h+=`<tr class="pv-l3"><td><div>${esc(t.name)}</div>
-          <div class="sub">정산ID ${esc(t.tid)} · ${esc(t.status)} · ${esc(t.method)} · 판매가격 ${won(t.price)} · 수수료 ${won(t.fee)} · 정산액 ${won(t.net)}</div></td>
+        h+=`<tr class="pv-l3"><td>${esc(t.name)}<span class="pv-s">${esc(t.tid)} · ${esc(t.status)} · ${esc(t.method)} · 판매가 ${won(t.price)} · 수수료 ${won(t.fee)} · 정산액 ${won(t.net)}</span></td>
           <td class="num">1개</td><td class="num">${won(t.amount)}</td></tr>`;
       }
     }
