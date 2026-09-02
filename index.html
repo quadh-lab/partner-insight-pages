@@ -889,7 +889,7 @@ function buildInsights(A){
     if(A.orders.length) out.push(`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
     const revisit=A.custs.filter(c=>c.days.size>=2).length;
     const multi=A.custs.filter(c=>c.n>1).length;
-    if(A.custs.length) out.push(`고객 ${A.custs.length}명 중 <b>${multi}명</b>이 한 번에 여러 자료를 묶어 샀고, 다른 날에 또 구매한 고객은 <b>${revisit}명</b>입니다 — 묶음 경향이 강하니 같은 시리즈의 다음 ${'과'}를 미리 채워두는 효과가 큽니다.`);
+    if(A.custs.length) out.push(`고객 ${A.custs.length}명 중 <b>${multi}명</b>이 한 번에 여러 자료를 묶어 샀고, <b>재구매</b> 고객은 <b>${revisit}명</b>입니다 — 묶음 경향이 강하니 같은 시리즈의 다음 ${'과'}를 미리 채워두는 효과가 큽니다.`);
     const tc=A.custs.filter(c=>c.seg==='선생님');
     if(A.custs.length&&tc.length){
       const ta=tc.reduce((s,c)=>s+c.amount,0);
@@ -1042,7 +1042,7 @@ function renderTime(A){
       <div class="tile"><div class="lb">고객 수</div><div class="v">${custs.length}<small>명</small></div><div class="d">정산 반영 거래 기준</div></div>
       <div class="tile"><div class="lb">선생님</div><div class="v">${teachers.length}<small>명</small></div><div class="d">매출의 ${pct(tAmt,total)}% 기여</div></div>
       <div class="tile"><div class="lb">학생(추정)</div><div class="v">${students.length}<small>명</small></div><div class="d">매출의 ${pct(sAmt,total)}% 기여</div></div>
-      <div class="tile"><div class="lb">다른 날 또 구매</div><div class="v">${rep.length}<small>명</small></div><div class="d">구매일이 2일 이상인 고객 — 진짜 다시 온 손님</div></div>
+      <div class="tile"><div class="lb">재구매</div><div class="v">${rep.length}<small>명</small></div><div class="d">구매일이 2일 이상인 고객 — 다른 날 다시 구매한 손님</div></div>
       <div class="tile"><div class="lb">결제 건수</div><div class="v">${A.orders.length}<small>건</small></div><div class="d">묶음 결제 ${bundles}건 · 결제당 구매 ${(txns.length/A.orders.length).toFixed(1)}개</div></div>
     </div>
     <div class="card"><h2>학생(추정) vs 선생님 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2>
