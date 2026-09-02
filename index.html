@@ -1411,6 +1411,7 @@ function renderData(A){
     if(!subtleOk){ msg.textContent='이 브라우저에서는 암호화를 지원하지 않습니다.'; msg.className='msg err'; return; }
     if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ msg.textContent='저장소를 "아이디/저장소이름" 형식으로 입력해 주세요.'; msg.className='msg err'; return; }
     if(!token){ msg.textContent='깃헙 토큰을 입력해 주세요.'; msg.className='msg err'; return; }
+    if(!/^[!-~]+$/.test(token)){ msg.textContent='토큰에 한글·줄임표(…)·공백 등 쓸 수 없는 문자가 섞여 있어요 — 칸을 완전히 비우고, 깃헙에서 토큰 전체를 다시 복사해 붙여넣어 주세요.'; msg.className='msg err'; return; }
     if(p1.length<4){ msg.textContent='위 칸에 암호화 비밀번호(4자 이상)를 먼저 입력해 주세요.'; msg.className='msg err'; return; }
     if(p1!==p2){ msg.textContent='비밀번호 확인이 일치하지 않습니다.'; msg.className='msg err'; return; }
     try{ localStorage.setItem(GH_KEY, JSON.stringify({repo,branch,token,pw:$('#ghRemPw').checked?p1:undefined})); }catch(e){}
