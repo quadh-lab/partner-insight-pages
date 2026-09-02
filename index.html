@@ -275,8 +275,10 @@ function parseReport(text){
   flush();
   return {items, declared};
 }
+const HEADER_LINES=new Set(['자료 ID','자료명','썸네일','판매 상태','라이선스 만료일','누적 거래액','열람+출력 (대여)','PDF 다운 (소장)','누적거래액순','자료 유형','출처 교재','자료명으로 검색','판매 상태']);
 function buildItem(id, raw){
-  const b=raw.filter(l=>l!=='썸네일');
+  // 여러 페이지를 이어 붙여넣으면 다음 페이지의 표 헤더 줄들이 직전 자료 레코드에 딸려 들어온다 — 제거
+  const b=raw.filter(l=>!HEADER_LINES.has(l));
   if(!b.length) return null;
   const name=b[0];
   if(!name || /^\d/.test(name)) return null;
@@ -287,7 +289,7 @@ function buildItem(id, raw){
     else if((m=l.match(/\((\d+)\s*명\s*구매\)/))) buyers=+m[1];
     else if(/^\d{4}\.\d{2}\.\d{2}$/.test(l)) expiry=l;
     else if((m=l.match(/\(D-(\d+)\)/))) dday=+m[1];
-    else if(l.length<=8 && /(판매중|판매중지|판매종료|승인|심사|대기|거절|만료)/.test(l)) status=l;
+    else if(l.length<=8 && !l.includes('만료일') && /(판매중|판매중지|판매종료|승인|심사|대기|거절|만료)/.test(l)) status=l;
   }
   let rent=null, own=null, rev=0;
   if(wons.length>=3){ rent=wons[0]; own=wons[1]; rev=wons[wons.length-1]; }
