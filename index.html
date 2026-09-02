@@ -1492,7 +1492,7 @@ function renderAll(){
 
 /* ================= 팀 공유 암호화 (AES-GCM + PBKDF2) ================= */
 const subtleOk=typeof crypto!=='undefined'&&crypto.subtle;
-const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
+const b64=a=>{const u=new Uint8Array(a);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}; // 큰 배열을 ...스프레드로 넘기면 인자 한도 초과(Maximum call stack) — 32KB 청크로 변환
 const unb64=str=>Uint8Array.from(atob(str),c=>c.charCodeAt(0));
 async function deriveKey(pw,salt){
   const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
