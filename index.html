@@ -805,6 +805,7 @@ function renderKpis(A){
   const kp=[
     {lb:'누적 거래액 (실시간)', v:won(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`▲ ${won(dRev)} (전 스냅샷 대비)`:dRev<0?`▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:'변동 없음'), up:dRev>0, down:dRev<0},
     {lb:'누적 구매 갯수', v:tl.buyers+'<small>개</small>', d: dBuy===null?'무엇이 팔렸나 (자료 수량)':(dBuy>0?`▲ ${dBuy}개`:dBuy<0?`▼ ${-dBuy}개`:'변동 없음'), up:dBuy>0, down:dBuy<0},
+    {lb:'누적 구매자수 (정산 기준)', v:A.custs.length?A.custs.length+'<small>명</small>':'—', d:A.custs.length?`선생님 ${A.custs.filter(c=>c.seg==='선생님').length}명 · 학생(추정) ${A.custs.filter(c=>c.seg!=='선생님').length}명 · <b>~${md(A.T.last)}</b> 확정분`:'정산 엑셀을 올리면 표시됩니다'},
     {lb:'결제 건수 (정산 기준)', v:A.T.n?A.orders.length+'<small>건</small>':'—', d:A.T.n?`결제당 ${(A.T.n/A.orders.length).toFixed(1)}개 · 객단가 ${won(Math.round(A.T.amount/A.orders.length))} · <b>~${md(A.T.last.slice(0,10))} 확정분</b>`:'지갑이 몇 번 열렸나 (주문 단위)'},
     {lb:'등록 자료', v:(A.latest.declared&&A.latest.declared>tl.n)?`${tl.n}<small> / ${A.latest.declared}개</small>`:tl.n+'<small>개</small>', d:(A.latest.declared&&A.latest.declared>tl.n)?`⚠ ${A.latest.declared-tl.n}개 미수집 — 나머지 페이지를 붙여넣으세요`:`판매중 ${A.latest.items.filter(i=>/판매중$/.test(i.status)).length}개 · 전환 ${conv}%`, down:!!(A.latest.declared&&A.latest.declared>tl.n)},
   ];
