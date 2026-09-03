@@ -1179,7 +1179,7 @@ function renderRank(A){
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
       <p class="desc">파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
       <div class="tblwrap" id="mxWrap"></div>
-      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">변</span> 미등록 = 제작 후보</span><span class="note">워=워크북 · 변=변형문제 · 본=본문 워크북 · 숫자 열 = 과/강 번호</span></div></div>
+      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">변</span> 미등록 = 제작 후보</span><span class="note">워=워크북 · 워본=본문 워크북 · 변=변형문제 · 숫자 열 = 과/강 번호</span></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1212,9 +1212,12 @@ function renderRank(A){
   let mx=`<table class="mx"><thead><tr><th>시리즈</th><th class="num">누적</th>`;
   for(let c=1;c<=chAll;c++) mx+=`<th style="text-align:center">${c}</th>`;
   mx+=`</tr></thead><tbody>`;
+  // 매트릭스 칸에 찍는 유형 약자 — fams 의 짝과 같아야 행끼리 읽힌다
+  // 본문 워크북도 워크북이므로 '워본'으로 적는다 (그냥 '본'이면 다른 갈래로 읽힌다)
+  const TYPE_SHORT={'워크북':'워','변형문제':'변','본문 워크북':'워본','기타':'·'};
   series.forEach(sr=>{
     let fams;
-    if(sr.items.some(i=>i.type==='본문 워크북')) fams=[['본문 워크북','본']];
+    if(sr.items.some(i=>i.type==='본문 워크북')) fams=[['본문 워크북','워본']];
     else if(sr.category==='교과서') fams=[['워크북','워'],['변형문제','변']];
     else{
       fams=[['워크북','워'],['변형문제','변'],['기타','·']].filter(([tp])=>sr.items.some(i=>i.type===tp));
@@ -1223,8 +1226,14 @@ function renderRank(A){
     const catChip=sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
     mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
     if(sr.chMax===0){
+      // 과·강 번호가 없는 자료(모의고사 등). 칸을 나눌 축이 없을 뿐 유형은 있으므로
+      // 다른 행과 같은 약자(워/변/본)로 찍는다 — 예전엔 전부 '단일'이라 워크북과
+      // 변형문제가 '단일단일'로 보였다.
       mx+=`<td colspan="${chAll}" style="text-align:left">`;
-      sr.items.forEach(it=>{ mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">단일</span>`; });
+      sr.items.forEach(it=>{
+        const sh=TYPE_SHORT[it.type]||'·';
+        mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
+      });
       mx+=`</td>`;
     }else{
       for(let c=1;c<=chAll;c++){
