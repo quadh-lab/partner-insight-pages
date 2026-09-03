@@ -234,8 +234,10 @@ input[type=password], input[type=text]{
     <div class="sub" id="hdSub"></div>
   </header>
 
+  <!-- 이 카드는 renderData() 가 '데이터 관리' 탭 안으로 옮긴다 (노드째 이동 — 이벤트 유지) -->
   <details class="card" id="inCard">
-    <summary>데이터 넣기 <span class="hint">— 실시간 현황은 붙여넣기, 확정 내역은 정산 엑셀 업로드</span></summary>
+    <summary>수동 입력 <span class="hint">— 백업용. 평소에는 ‘파트너센터 갱신.bat’ 이 자동으로 넣습니다</span></summary>
+    <p class="desc" style="margin:10px 0 0">쏠북 API 가 바뀌거나 토큰이 만료돼 자동 수집이 멈췄을 때 쓰는 경로입니다. 평소에는 열지 않아도 됩니다.</p>
     <div class="inBody">
       <div class="inCol">
         <h3>① 실시간 현황 붙여넣기</h3>
@@ -258,7 +260,7 @@ input[type=password], input[type=text]{
         <p class="msg" id="xlsMsg"></p>
       </div>
     </div>
-    <p class="note" style="margin-top:12px">같은 날짜에 다시 붙여넣으면 그 날짜 스냅샷에 병합·갱신됩니다. 데이터는 이 브라우저에만 저장되니 ‘데이터 관리’ 탭에서 가끔 JSON 백업을 받아 두세요.</p>
+    <p class="note" style="margin-top:12px">같은 날짜에 다시 붙여넣으면 그 날짜 스냅샷에 병합·갱신됩니다. 여기서 넣은 값은 이 브라우저에만 남습니다 — 자동 수집의 원본은 PC의 <code>tools\_state\state.json</code> 파일입니다.</p>
   </details>
 
   <div class="kpis" id="kpis"></div>
@@ -1493,6 +1495,10 @@ function renderTail(A){
 }
 function renderData(A){
   const p=$('#p-data');
+  // 수동 입력 카드는 이 탭 안에 산다. innerHTML 을 갈아엎기 전에 노드를 빼 두었다가
+  // 다시 붙인다 — 새로 만들면 붙여넣기·파일선택 이벤트가 끊긴다.
+  const inCard=document.getElementById('inCard');
+  if(inCard&&inCard.parentNode) inCard.parentNode.removeChild(inCard);
   const rows=[...A.snaps].reverse().map(s=>{
     const t=totals(s);
     return `<tr><td class="nm">${s.date}</td>
@@ -1533,14 +1539,17 @@ function renderData(A){
         <p class="msg" id="ghMsg"></p>
       </div></div>
     <div class="card"><h2>백업</h2>
-      <p class="desc">데이터는 이 브라우저의 저장 공간에만 있습니다. 브라우저를 바꾸거나 기록을 지우면 사라질 수 있으니 주기적으로 백업하세요.${lsOk?'':' <b style="color:var(--crit)">지금 이 환경에서는 브라우저 저장이 막혀 있어, 탭을 닫으면 데이터가 사라집니다. 백업을 꼭 받아 두세요.</b>'}</p>
+      <p class="desc">자동 수집을 쓰면 원본은 PC의 <code>tools\\_state\\state.json</code> 파일이라 브라우저를 지워도 남습니다. 이 화면에서 직접 넣은 값만 브라우저 저장 공간에 있습니다.${lsOk?'':' <b style="color:var(--crit)">지금 이 환경에서는 브라우저 저장이 막혀 있어, 탭을 닫으면 데이터가 사라집니다. 백업을 꼭 받아 두세요.</b>'}</p>
       <div class="row" style="margin-top:0">
         <button id="btnExport">JSON 내보내기 (복사)</button>
         <button id="btnImport">JSON 가져오기</button>
         <button class="danger" id="btnReset">전체 초기화</button>
       </div>
       <textarea id="ioBox" placeholder="‘JSON 내보내기’를 누르면 여기에 백업 텍스트가 나타납니다. 복원하려면 백업 텍스트를 붙여넣고 ‘JSON 가져오기’를 누르세요." style="margin-top:10px; min-height:110px"></textarea>
-    </div>`;
+    </div>
+    <div id="inCardSlot"></div>`;
+  const slot=document.getElementById('inCardSlot');
+  if(inCard&&slot) slot.appendChild(inCard);
   p.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
     const d=b.getAttribute('data-del');
     if(!confirm(d+' 스냅샷을 삭제할까요?')) return;
