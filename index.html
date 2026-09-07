@@ -1662,7 +1662,7 @@ function renderData(A){
 function renderAll(){
   const A=computeAll();
   $('#hdSub').innerHTML=A.latest.items.length?
-    `실시간 수집 <b>${A.latest.date}</b> · 스냅샷 ${A.snaps.length}개 · 자료 ${A.tl.n}${A.latest.declared?`/${A.latest.declared}`:''}개 · 정산 <b>~${A.T.last?A.T.last.slice(0,10):'-'}</b> 확정분 · 구매 ${A.txns.length}개`:
+    `<b>실시간 수집</b> ${A.latest.date} · 스냅샷 ${A.snaps.length}개 · 자료 ${A.tl.n}${A.latest.declared?`/${A.latest.declared}`:''}개 · <b>정산</b> ~${A.T.last?A.T.last.slice(0,10):'-'} 확정분 · 구매 ${A.txns.length}개`:
     `데이터를 넣으면 리포트가 시작됩니다`;
   $('#txnCount').textContent=A.txns.length?`저장된 구매 내역 ${A.txns.length}개 (~${A.T.last?A.T.last.slice(0,10):''})`:'';
   renderKpis(A); renderDelta(A); renderTrend(A); renderTime(A); renderRank(A); renderSettle(A); renderTail(A); renderData(A);
