@@ -163,6 +163,7 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .mx .b.sold{background:var(--accent); color:#fff}
 .mx .b.listed{background:var(--chip); color:var(--ink-2)}
 .mx .b.miss{background:none; border:1px dashed var(--baseline); color:var(--muted)}
+.mx .mxlab{font-size:10px; color:var(--muted); line-height:1; margin-bottom:2px}
 .mxlegend{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:10px; align-items:center}
 .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:8px}
 .legend .k{display:inline-flex; align-items:center; gap:6px}
@@ -334,18 +335,25 @@ function buildItem(id, raw){
 }
 function classify(name){
   let grade=(name.match(/^(고1|고2|고3|중1|중2|중3|초[1-6])/)||[])[1]||'';
+  // 전국연합 기출문제집처럼 학년이 뒤에 오는 제목(…영어독해 고1 3강 워크북)도 학년으로 잡는다
+  if(!grade) grade=(name.match(/(?:^|\s)(고[123]|중[123])(?=\s|$)/)||[])[1]||'';
   if(!grade && /^고등/.test(name)) grade='고등';
   if(!grade && /^중등/.test(name)) grade='중등';
   if(!grade) grade='기타';
   const pub=(name.match(/([A-Za-z가-힣]+\([A-Za-z가-힣]+\))/)||[])[1]||'기타';
+  // 자료 유형 3종: 분석자료(서버 제목은 '4단 분석자료') · 워크북(중학은 '본문 워크북') · 변형문제
   let type='기타';
-  if(name.includes('변형문제')) type='변형문제';
+  if(name.includes('분석자료')) type='분석자료';
+  else if(name.includes('변형문제')) type='변형문제';
   else if(name.includes('본문 워크북')) type='본문 워크북';
   else if(name.includes('워크북')) type='워크북';
   const teacher=(name.match(/by\s+(.+)$/)||[])[1]||'';
-  const chm=name.match(/(\d+)\s*(과|강)/);
-  const chapter=chm?chm[1]:'';
-  const chUnit=chm?chm[2]:'과';
+  // 과·강 번호. 독해연습 Mini Test 는 'MT1~3' 로만 적히므로 현황판 순번대로 13·14·15강으로 놓고
+  // 원래 표기는 chLabel 에 남긴다(매트릭스 칸·공략 지점 문구가 그걸 쓴다).
+  let chm=name.match(/(\d+)\s*(과|강)/);
+  let chapter=chm?chm[1]:'', chUnit=chm?chm[2]:'과', chLabel='';
+  const mt=!chm&&name.match(/\bMT(\d)\b/);
+  if(mt){ chm=mt; chapter=String(12+ +mt[1]); chUnit='강'; chLabel=mt[0]; }
   // 구분: 교과서(출판사 패턴) / 수능·모의고사(월·학평·모평 등) / 부교재(올림포스·수능특강 등 그 외)
   let category;
   if(pub!=='기타') category='교과서';
@@ -355,8 +363,9 @@ function classify(name){
   const cut=course.search(/[A-Za-z가-힣]+\(/);
   if(cut>0) course=course.slice(0,cut);
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
-  course=course.replace(/(변형문제|본문 워크북|워크북)/g,'').replace(/\(([^)]{2,})\)/g,'').trim()||'기타';
-  return {grade,pub,type,teacher,chapter,chUnit,course,category};
+  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북)/g,'').replace(/\(([^)]{2,})\)/g,'')
+    .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
+  return {grade,pub,type,teacher,chapter,chUnit,chLabel,course,category};
 }
 function seriesKey(c){ return c.pub!=='기타' ? `${c.grade} ${c.course} ${c.pub}` : `${c.grade} ${c.course}`; }
 // PARSER-END
@@ -1183,9 +1192,9 @@ function renderRank(A){
     </div>
     <div class="card"><h2>교재별 상세</h2><div id="catTbl"></div></div>
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
-      <p class="desc">파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
+      <p class="desc">칸마다 자료 유형 3종을 분·워·변 순으로 찍습니다. 파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
       <div class="tblwrap" id="mxWrap"></div>
-      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">변</span> 미등록 = 제작 후보</span><span class="note">워=워크북 · 워본=본문 워크북 · 변=변형문제 · 숫자 열 = 과/강 번호</span></div></div>
+      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1218,37 +1227,33 @@ function renderRank(A){
   let mx=`<table class="mx"><thead><tr><th>시리즈</th><th class="num">누적</th>`;
   for(let c=1;c<=chAll;c++) mx+=`<th style="text-align:center">${c}</th>`;
   mx+=`</tr></thead><tbody>`;
-  // 매트릭스 칸에 찍는 유형 약자 — fams 의 짝과 같아야 행끼리 읽힌다
-  // 본문 워크북도 워크북이므로 '워본'으로 적는다 (그냥 '본'이면 다른 갈래로 읽힌다)
-  const TYPE_SHORT={'워크북':'워','변형문제':'변','본문 워크북':'워본','기타':'·'};
+  // 칸마다 유형 3종(분·워·변)을 같은 순서로 찍는다 — 행끼리 세로로 읽히게.
+  // 중학(본문 워크북) 라인은 워크북 한 종뿐이라 '워본' 하나만 찍는다.
+  const badge=(it,sh)=>`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
+  const missBadge=(sr,tp,sh,where)=>`<span class="b miss" title="미등록 — 제작 후보: ${esc(sr.key)}${where?' '+where:''} ${tp}">${sh}</span>`;
   series.forEach(sr=>{
-    let fams;
-    if(sr.items.some(i=>i.type==='본문 워크북')) fams=[['본문 워크북','워본']];
-    else if(sr.category==='교과서') fams=[['워크북','워'],['변형문제','변']];
-    else{
-      fams=[['워크북','워'],['변형문제','변'],['기타','·']].filter(([tp])=>sr.items.some(i=>i.type===tp));
-      if(!fams.length) fams=[['기타','·']];
-    }
+    const fams=seriesFams(sr);
     const catChip=sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
-    mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
+    // 과 번호가 없는 자료가 번호 있는 시리즈에 섞이면(중1 YBM(김) SL 본문 워크북) 칸이 없어 사라지므로 시리즈 이름 옆에 찍는다
+    const loose=sr.chMax>0?sr.items.filter(i=>!(+i.chapter||0)).map(it=>badge(it,TYPE_SHORT_OF(it.type))).join(''):'';
+    mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}${loose?' '+loose:''}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
     if(sr.chMax===0){
-      // 과·강 번호가 없는 자료(모의고사 등). 칸을 나눌 축이 없을 뿐 유형은 있으므로
-      // 다른 행과 같은 약자(워/변/본)로 찍는다 — 예전엔 전부 '단일'이라 워크북과
-      // 변형문제가 '단일단일'로 보였다.
+      // 과·강 번호가 없는 자료(모의고사). 칸을 나눌 축이 없을 뿐 유형 3종은 같으므로
+      // 한 칸에 분·워·변 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다.
       mx+=`<td colspan="${chAll}" style="text-align:left">`;
-      sr.items.forEach(it=>{
-        const sh=TYPE_SHORT[it.type]||'·';
-        mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
+      fams.forEach(([tp,sh])=>{
+        const it=sr.items.find(i=>i.type===tp);
+        mx+=it?badge(it,sh):missBadge(sr,tp,sh,'');
       });
       mx+=`</td>`;
     }else{
       for(let c=1;c<=chAll;c++){
         if(c>sr.chMax){ mx+=`<td></td>`; continue; }
-        mx+=`<td style="text-align:center; white-space:nowrap">`;
+        const lab=sr.chLabels[c]; // MT1~3 처럼 번호 대신 이름으로 적힌 강
+        mx+=`<td style="text-align:center; white-space:nowrap">${lab?`<div class="mxlab">${esc(lab)}</div>`:''}`;
         fams.forEach(([tp,sh])=>{
           const it=sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c);
-          if(it) mx+=`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
-          else mx+=`<span class="b miss" title="미등록 — 제작 후보: ${esc(sr.key)} ${c}${sr.unit} ${tp}">${sh}</span>`;
+          mx+=it?badge(it,sh):missBadge(sr,tp,sh,lab||`${c}${sr.unit}`);
         });
         mx+=`</td>`;
       }
@@ -1263,14 +1268,22 @@ function renderRank(A){
     <div class="insight"><span class="dot"></span><div><b>${i+1}. ${esc(t.title)}</b><div style="color:var(--muted); font-size:12.5px">${t.reason}</div></div></div>`).join('')}</div>`
     :'<div class="empty">판매 실적이 쌓이면 공략 지점을 제안합니다.</div>';
 }
+// 자료 유형 3종과 매트릭스 약자. 본문 워크북도 워크북이므로 '워본'(그냥 '본'이면 다른 갈래로 읽힌다).
+const TYPE_FAMS=[['분석자료','분'],['워크북','워'],['변형문제','변']];
+// 시리즈가 갖춰야 할 유형 목록 — 고등(교과서·부교재·모의고사)은 3종 전부, 중학 라인은 본문 워크북 하나.
+const TYPE_SHORT_OF=tp=>tp==='본문 워크북'?'워본':(TYPE_FAMS.find(([t])=>t===tp)||[,'·'])[1];
+function seriesFams(sr){
+  return sr.items.some(i=>i.type==='본문 워크북') ? [['본문 워크북','워본']] : TYPE_FAMS;
+}
 function buildSeries(items){
   const sm=new Map();
   items.forEach(it=>{
     const key=seriesKey(it);
-    if(!sm.has(key)) sm.set(key,{key,rev:0,items:[],chMax:0,unit:'과',category:it.category||'교과서'});
+    if(!sm.has(key)) sm.set(key,{key,rev:0,items:[],chMax:0,unit:'과',chLabels:{},category:it.category||'교과서'});
     const sr=sm.get(key);
     sr.rev+=it.rev; sr.items.push(it);
     const c=+it.chapter||0; if(c>sr.chMax) sr.chMax=c;
+    if(c&&it.chLabel) sr.chLabels[c]=it.chLabel;
     if(it.chUnit==='강') sr.unit='강';
   });
   return [...sm.values()].sort((a,b)=>b.rev-a.rev);
@@ -1289,24 +1302,47 @@ function buildTargets(A){
   });
   const targets=[];
   series.filter(sr=>sr.rev>0).forEach(sr=>{
-    const fams=sr.items.some(i=>i.type==='본문 워크북')?['본문 워크북']:(sr.category==='교과서'?['워크북','변형문제']:[...new Set(sr.items.map(i=>i.type))]);
-    fams.forEach(tp=>{
-      const have=new Set(sr.items.filter(i=>i.type===tp).map(i=>+i.chapter||0));
-      const soldSame=sr.items.filter(i=>i.type===tp&&i.rev>0).length;
+    const chName=c=>sr.chLabels[c]||`${c}${sr.unit}`; // MT1 은 '13강' 이 아니라 'MT1' 로 적는다
+    const chList=arr=>{ // 1·2·3과 / 12강·MT1·MT2 — 이름 강이 섞이면 하나씩 단위를 붙인다
+      const nums=arr.filter(c=>!sr.chLabels[c]), labs=arr.filter(c=>sr.chLabels[c]).map(c=>sr.chLabels[c]);
+      return [nums.length?nums.join('·')+sr.unit:'',...labs].filter(Boolean).join('·');
+    };
+    // 빈칸이 같은 유형끼리 한 줄로 묶는다 — 1·2·6·7강이 3종 다 없으면 세 줄이 아니라 한 줄
+    const gaps=new Map(); // 빈칸 서명 → {types, have, soldSame}
+    seriesFams(sr).forEach(([tp])=>{
+      const mine=sr.items.filter(i=>i.type===tp);
+      const have=new Set(mine.map(i=>+i.chapter||0));
+      const soldSame=mine.filter(i=>i.rev>0).length;
       const missing=[];
-      for(let c=1;c<=sr.chMax;c++) if(!have.has(c)) missing.push(c);
-      if(missing.length){
-        targets.push({score:sr.rev+(soldSame?1:0), title:`${sr.key} ${missing.join('·')}${sr.unit} ${tp}`,
-          reason:`시리즈 누적 ${won(sr.rev)}${have.size?` · ${tp} ${[...have].filter(Boolean).sort((a,b)=>a-b).join('·')}${sr.unit} 등록${soldSame?` (판매 중)`:''}`:` · ${tp} 미등록 라인`} — 빈칸 채우기`});
+      if(sr.chMax===0){ if(!mine.length) missing.push(0); } // 과·강 축이 없는 시리즈(모의고사): 유형 자체가 빠졌으면 그 유형이 곧 빈칸
+      else for(let c=1;c<=sr.chMax;c++) if(!have.has(c)) missing.push(c);
+      if(!missing.length) return;
+      const sig=missing.join(',');
+      if(!gaps.has(sig)) gaps.set(sig,{missing,types:[],have,soldSame:0});
+      const g=gaps.get(sig); g.types.push(tp); g.soldSame+=soldSame;
+    });
+    gaps.forEach(g=>{
+      const tps=g.types.join('·');
+      if(sr.chMax===0){
+        targets.push({score:sr.rev, title:`${sr.key} ${tps}`, reason:`시리즈 누적 ${won(sr.rev)} · ${tps} 미등록 라인 — 빈칸 채우기`});
+        return;
       }
+      const had=[...g.have].filter(Boolean).sort((a,b)=>a-b);
+      if(!had.length){ // 그 유형이 한 권도 없는 라인 — 강을 전부 나열하지 않고 범위로 적는다
+        targets.push({score:sr.rev, title:`${sr.key} ${tps} 라인 신설`,
+          reason:`시리즈 누적 ${won(sr.rev)} · ${tps} 미등록 — 1~${chName(sr.chMax)} 전체가 빈칸`});
+        return;
+      }
+      targets.push({score:sr.rev+(g.soldSame?1:0), title:`${sr.key} ${chList(g.missing)} ${tps}`,
+        reason:`시리즈 누적 ${won(sr.rev)} · ${chList(had)} 등록${g.soldSame?` (판매 중)`:''} — 빈칸 채우기`});
     });
     const m=custSeries.get(sr.key);
     if(m){
       const cand=[...m.values()].filter(ch=>ch>0&&ch<sr.chMax).length;
       if(cand) targets.push({score:sr.rev*0.9, title:`${sr.key} — 이어살 후보 ${cand}명`,
-        reason:`${sr.chMax}${sr.unit} 미만까지 구매한 고객 ${cand}명 · 다음 ${sr.unit} 노출·알림 우선`});
+        reason:`${chName(sr.chMax)} 미만까지 구매한 고객 ${cand}명 · 다음 ${sr.unit} 노출·알림 우선`});
     }
-    if(sr.items.length>0 && sr.items.every(i=>i.rev>0) && sr.chMax>0){
+    if(sr.items.length>0 && sr.items.every(i=>i.rev>0) && sr.chMax>0 && !sr.chLabels[sr.chMax]){ // MT3 뒤엔 다음 강이 없다
       targets.push({score:sr.rev*0.8, title:`${sr.key} ${sr.chMax+1}${sr.unit} 이후 확장`,
         reason:`등록 자료 전량 판매(전환 100%) — 라인 확장 여력`});
     }
