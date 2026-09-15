@@ -509,21 +509,28 @@ function adjustSnaps(){
   const byName=new Map();
   state.txns.forEach(t=>{ if(!byName.has(t.name)) byName.set(t.name,[]); byName.get(t.name).push(t); });
   const cancelNames=new Set(cancels.map(t=>t.name));
+  // 정산이 오기 전에도 서버값만으로 잡히는 결제·취소 짝: 스냅샷 사이에 구매 갯수는 2개 이상 늘었는데 거래액은 그대로면
+  // (유료 자료가 돈 없이 팔릴 수는 없으므로) 늘어난 짝수만큼이 결제+취소다. 자료별로 누적해(phantom) 정산 취소와 겹치지 않게 max 로 쓴다.
+  const prevRaw=new Map(), phantom=new Map();
   state.snaps.forEach(sn=>{
     bbbOrdinals(sn.items);
     sn.items.forEach(it=>{
       if(it.buyersRaw===undefined){ it.buyersRaw=it.buyers; it.revRaw=it.rev; }
-      it.buyers=it.buyersRaw; it.rev=it.revRaw; it.cancels=0;
-      if(!cancelNames.has(it.name)) return;
-      const rows=byName.get(it.name).filter(t=>t.dt.slice(0,10)<=sn.date);
-      const cs=rows.filter(t=>t.amount<0);
-      if(!cs.length) return;
-      const net=rows.reduce((a,t)=>a+t.amount,0);
-      const cAmt=cs.reduce((a,t)=>a-t.amount,0);
-      it.cancels=cs.length;
-      it.buyers=Math.max(0,it.buyersRaw-2*cs.length);
-      const c2=it.revRaw-2*cAmt;
-      it.rev=c2>=net?c2:it.revRaw;
+      const pr=prevRaw.get(it.id);
+      const dB=it.buyersRaw-(pr?pr.b:0), dR=it.revRaw-(pr?pr.r:0);
+      if(dR===0&&dB>=2&&(it.rent>0||it.own>0)) phantom.set(it.id,(phantom.get(it.id)||0)+2*Math.floor(dB/2));
+      prevRaw.set(it.id,{b:it.buyersRaw,r:it.revRaw});
+      let sc=0, cAmt=0, net=0;
+      if(cancelNames.has(it.name)){
+        const rows=byName.get(it.name).filter(t=>t.dt.slice(0,10)<=sn.date);
+        const cs=rows.filter(t=>t.amount<0);
+        sc=2*cs.length; cAmt=cs.reduce((a,t)=>a-t.amount,0); net=rows.reduce((a,t)=>a+t.amount,0);
+      }
+      const adj=Math.max(sc,phantom.get(it.id)||0);
+      it.cancels=adj/2;
+      it.buyers=Math.max(0,it.buyersRaw-adj);
+      it.rev=it.revRaw;
+      if(sc){ const c2=it.revRaw-2*cAmt; it.rev=c2>=net?c2:it.revRaw; }
     });
   });
 }
@@ -946,9 +953,10 @@ function renderDelta(A){
   const news=A.deltas.filter(d=>d.isNew);
   const stch=A.deltas.filter(d=>d.statusChanged);
   const dRev=A.tl.rev-A.tp.rev, dBuy=A.tl.buyers-A.tp.buyers;
+  const pmc=itemMap(A.prev); const cancelled=A.latest.items.reduce((a,it)=>a+((it.cancels||0)-((pmc.get(it.id)||{}).cancels||0)),0);
   let html=`<div class="card">
     <h2>${A.prev.date} → ${A.latest.date} 변동 <span class="chip">${gap}일 간격</span></h2>
-    <p class="desc">이 기간 매출 <b class="${dRev>=0?'up':'dn'}">${dRev>=0?'+':'−'}${won(Math.abs(dRev))}</b> · 구매 <b class="${dBuy>=0?'up':'dn'}">${dBuy>=0?'+':'−'}${Math.abs(dBuy)}개</b>${news.length?` · 신규 등록 ${news.length}개`:''}${A.removed.length?` · 목록에서 빠진 자료 ${A.removed.length}개`:''}</p>
+    <p class="desc">이 기간 매출 <b class="${dRev>=0?'up':'dn'}">${dRev>=0?'+':'−'}${won(Math.abs(dRev))}</b> · 구매 <b class="${dBuy>=0?'up':'dn'}">${dBuy>=0?'+':'−'}${Math.abs(dBuy)}개</b>${news.length?` · 신규 등록 ${news.length}개`:''}${cancelled>0?` · <span class="zero">결제 후 취소 ${cancelled}건은 +1 −1 로 상쇄해 갯수에 넣지 않았습니다</span>`:''}${A.removed.length?` · 목록에서 빠진 자료 ${A.removed.length}개`:''}</p>
     ${A.latest.items.length<A.prev.items.length?`<p class="desc" style="color:var(--warn)">⚠ 자료 수가 ${A.prev.items.length}개 → ${A.latest.items.length}개로 줄었습니다. 일부 페이지만 붙여넣었을 수 있으니, 모든 페이지를 이어서 붙여넣은 뒤 다시 확인하세요 — 이 상태의 변동 수치는 신뢰가 낮습니다.</p>`:''}`;
   if(changed.length){
     // 시리즈(학년 · 교재 · 출판사)별로 묶고, 펼치면 상품별 행이 나온다. 묶음 행에 시리즈 합계와 상품 수·자료 유형별 개수를 적는다.
