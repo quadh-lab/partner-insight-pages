@@ -349,10 +349,11 @@ function classify(name){
   if(!grade && /^중등/.test(name)) grade='중등';
   if(!grade) grade='기타';
   const pub=(name.match(/([A-Za-z가-힣]+\([A-Za-z가-힣]+\))/)||[])[1]||'기타';
-  // 자료 유형 3종: 분석자료(서버 제목은 '4단 분석자료') · 워크북(중학은 '본문 워크북') · 변형문제
+  // 자료 유형 4종: 분석자료(서버 제목은 '4단 분석자료') · 워크북(중학은 '본문 워크북') · 변형문제 · 파이널(2026-09-20 추가 — 없으면 117권이 «기타»로 떨어졌다)
   let type='기타';
   if(name.includes('분석자료')) type='분석자료';
   else if(name.includes('변형문제')) type='변형문제';
+  else if(name.includes('파이널')) type='파이널';
   else if(name.includes('본문 워크북')) type='본문 워크북';
   else if(name.includes('워크북')) type='워크북';
   const teacher=(name.match(/by\s+(.+)$/)||[])[1]||'';
@@ -375,7 +376,7 @@ function classify(name){
   const cut=course.search(/[A-Za-z가-힣]+\(/);
   if(cut>0) course=course.slice(0,cut);
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
-  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북)/g,'').replace(/\(([^)]{2,})\)/g,'')
+  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널)/g,'').replace(/\(([^)]{2,})\)/g,'')
     .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
   return {grade,pub,type,teacher,chapter,chUnit,chLabel,chCode,course,category};
 }
@@ -1297,7 +1298,7 @@ function renderRank(A){
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
       <p class="desc">칸마다 자료 유형 3종을 분·워·변 순으로 찍습니다. 파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
       <div class="tblwrap" id="mxWrap"></div>
-      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
+      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1335,7 +1336,7 @@ function renderRank(A){
   let mx=`<table class="mx"><thead><tr><th>시리즈</th><th class="num">누적</th>`;
   for(let c=1;c<=chAll;c++) mx+=`<th style="text-align:center">${c}</th>`;
   mx+=`</tr></thead><tbody>`;
-  // 칸마다 유형 3종(분·워·변)을 같은 순서로 찍는다 — 행끼리 세로로 읽히게.
+  // 칸마다 유형 4종(분·워·변·파)을 같은 순서로 찍는다 — 행끼리 세로로 읽히게.
   // 중학(본문 워크북) 라인은 워크북 한 종뿐이라 '워본' 하나만 찍는다.
   const badge=(it,sh)=>`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
   const missBadge=(sr,tp,sh,where)=>`<span class="b miss" title="미등록 — 제작 후보: ${esc(sr.key)}${where?' '+where:''} ${tp}">${sh}</span>`;
@@ -1347,7 +1348,7 @@ function renderRank(A){
     mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}${loose?' '+loose:''}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
     if(sr.chMax===0){
       // 과·강 번호가 없는 자료(모의고사). 칸을 나눌 축이 없을 뿐 유형 3종은 같으므로
-      // 한 칸에 분·워·변 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다.
+      // 한 칸에 분·워·변·파 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다.
       mx+=`<td colspan="${chAll}" style="text-align:left">`;
       fams.forEach(([tp,sh])=>{
         const it=sr.items.find(i=>i.type===tp);
@@ -1376,9 +1377,9 @@ function renderRank(A){
     <div class="insight"><span class="dot"></span><div><b>${i+1}. ${esc(t.title)}</b><div style="color:var(--muted); font-size:12.5px">${t.reason}</div></div></div>`).join('')}</div>`
     :'<div class="empty">판매 실적이 쌓이면 공략 지점을 제안합니다.</div>';
 }
-// 자료 유형 3종과 매트릭스 약자. 본문 워크북도 워크북이므로 '워본'(그냥 '본'이면 다른 갈래로 읽힌다).
-const TYPE_FAMS=[['분석자료','분'],['워크북','워'],['변형문제','변']];
-// 시리즈가 갖춰야 할 유형 목록 — 고등(교과서·부교재·모의고사)은 3종 전부, 중학 라인은 본문 워크북 하나.
+// 자료 유형 4종과 매트릭스 약자. 본문 워크북도 워크북이므로 '워본'(그냥 '본'이면 다른 갈래로 읽힌다). 파이널은 2026-09-20 추가.
+const TYPE_FAMS=[['분석자료','분'],['워크북','워'],['변형문제','변'],['파이널','파']];
+// 시리즈가 갖춰야 할 유형 목록 — 고등(교과서·부교재·모의고사)은 4종 전부, 중학 라인은 본문 워크북 하나.
 const TYPE_SHORT_OF=tp=>tp==='본문 워크북'?'워본':(TYPE_FAMS.find(([t])=>t===tp)||[,'·'])[1];
 function seriesFams(sr){
   return sr.items.some(i=>i.type==='본문 워크북') ? [['본문 워크북','워본']] : TYPE_FAMS;
