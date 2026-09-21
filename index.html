@@ -513,6 +513,20 @@ function adjustSnaps(){
   // 정산이 오기 전에도 서버값만으로 잡히는 결제·취소 짝: 스냅샷 사이에 구매 갯수는 2개 이상 늘었는데 거래액은 그대로면
   // (유료 자료가 돈 없이 팔릴 수는 없으므로) 늘어난 짝수만큼이 결제+취소다. 자료별로 누적해(phantom) 정산 취소와 겹치지 않게 max 로 쓴다.
   const prevRaw=new Map(), phantom=new Map();
+  // 거래액을 뺄지(서버가 취소액을 더한 경우)는 자료마다 **한 번만** 정한다 — 최신 스냅샷 기준.
+  // 스냅샷마다 따로 판정하면 경계값(순액 ±몇백 원)에서 하루는 안 빼고 다음 날은 빼서, 변동 탭에 −2×취소액이 허깨비로 찍힌다
+  // (2026-09-22 고2 YBM(박) 2과 변형문제: 실제 +10,149원인데 −9,651원 — 사용자 지적).
+  const subtractRev=new Map();
+  if(state.snaps.length){
+    const last=state.snaps[state.snaps.length-1];
+    last.items.forEach(it=>{
+      if(!cancelNames.has(it.name)) return;
+      const rows=byName.get(it.name).filter(t=>t.dt.slice(0,10)<=last.date);
+      const cAmt=rows.filter(t=>t.amount<0).reduce((a,t)=>a-t.amount,0), net=rows.reduce((a,t)=>a+t.amount,0);
+      const raw=it.revRaw===undefined?it.rev:it.revRaw;
+      subtractRev.set(it.name, raw-2*cAmt>=net);
+    });
+  }
   state.snaps.forEach(sn=>{
     bbbOrdinals(sn.items);
     sn.items.forEach(it=>{
@@ -531,7 +545,7 @@ function adjustSnaps(){
       it.cancels=adj/2;
       it.buyers=Math.max(0,it.buyersRaw-adj);
       it.rev=it.revRaw;
-      if(sc){ const c2=it.revRaw-2*cAmt; it.rev=c2>=net?c2:it.revRaw; }
+      if(sc){ const dec=subtractRev.has(it.name)?subtractRev.get(it.name):(it.revRaw-2*cAmt>=net); it.rev=dec?it.revRaw-2*cAmt:it.revRaw; }
     });
   });
 }
