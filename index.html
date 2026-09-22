@@ -177,13 +177,17 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .dg tr.dg-i td:first-child{padding-left:32px}
 .dg-bar{margin-top:10px}
 .dg-bar button{font-size:12.5px; padding:6px 11px}
-/* 변동 탭 구성 요약(학교급·유형·구분 비율 바) */
-.mixhd{font-size:13px; font-weight:600; margin:16px 0 3px}
-.mixnote{margin:0 0 10px; font-size:12.5px}
-.mixgrid{gap:14px 18px; margin-bottom:12px}
-.mxt{font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:5px}
-.mixgrid .legend{gap:4px 12px; font-size:12px; margin-top:7px}
-.mixgrid .legend .chip{font-size:11px; padding:1px 6px}
+/* 변동 탭 구성 요약(학교급·유형·구분 비율 바) — 표 위의 한 뼘이라 얇게 */
+.mixhd{font-size:12.5px; font-weight:600; margin:12px 0 7px; line-height:1.5}
+.mixhd .zero{font-weight:400}
+.mixhd .chip{font-size:11px; padding:1px 7px; vertical-align:1px}
+.mixnote{margin:8px 0 2px; font-size:12px; line-height:1.5}
+.mixgrid{gap:10px 18px; margin-bottom:0}
+.mxt{font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:3px}
+.mixgrid .legend{display:block; font-size:11.5px; line-height:1.45; margin-top:5px}
+.mixgrid .legend .k{display:flex; align-items:baseline; gap:5px}
+.mixgrid .legend .sw{width:8px; height:8px; border-radius:2px; position:relative; top:-1px}
+.mixgrid .legend .chip{font-size:10.5px; padding:0 5px; margin-left:1px}
 
 .insights{display:flex; flex-direction:column; gap:9px}
 .insight{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
@@ -662,19 +666,21 @@ function shareBar(container, parts, opts={}){
   const total=parts.reduce((a,q)=>a+q.value,0);
   if(!total){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
   const refTot=parts.reduce((a,q)=>a+(Number.isFinite(q.ref)?q.ref:0),0);
-  const hasRef=refTot>0, refH=7, refGap=4;
-  const W=Math.max(280, container.clientWidth||500), barH=26, H=34+(hasRef?refH+refGap:0), gap=2, rr=4;
+  const cm=!!opts.compact;                       // compact: 요약용 얇은 바 (변동 탭 구성 요약)
+  const hasRef=refTot>0, refH=cm?4:7, refGap=cm?3:4;
+  const W=Math.max(280, container.clientWidth||500), barH=cm?15:26, top=cm?1:4,
+        H=top+barH+(hasRef?refH+refGap:0)+(cm?1:4), gap=2, rr=cm?3:4;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
   const nz=parts.filter(q=>q.value>0);
   let x=0;
   nz.forEach((q,i)=>{
     const w=q.value/total*(W-(nz.length-1)*gap);
     const first=i===0, last=i===nz.length-1;
-    const seg=el('path',{d:roundedSharePath(x,4,w,barH,first?rr:0,last?rr:0),fill:q.color},svg);
+    const seg=el('path',{d:roundedSharePath(x,top,w,barH,first?rr:0,last?rr:0),fill:q.color},svg);
     attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${fmt(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
     const pctv=Math.round(q.value/total*100);
-    if(w>=48){
-      const t=el('text',{x:x+w/2,y:4+barH*0.68,'text-anchor':'middle','font-size':'12.5','font-weight':'700',fill:'#fff'},svg);
+    if(w>=(cm?32:48)){
+      const t=el('text',{x:x+w/2,y:top+barH*(cm?.74:.68),'text-anchor':'middle','font-size':cm?'10.5':'12.5','font-weight':'700',fill:'#fff'},svg);
       t.textContent=pctv+'%';
       t.style.pointerEvents='none';
     }
@@ -686,7 +692,7 @@ function shareBar(container, parts, opts={}){
     rz.forEach((q,i)=>{
       const w=q.ref/refTot*(W-(rz.length-1)*gap);
       const first=i===0, last=i===rz.length-1;
-      const seg=el('path',{d:roundedSharePath(rx,4+barH+refGap,w,refH,first?2:0,last?2:0),fill:q.color,'fill-opacity':.4},svg);
+      const seg=el('path',{d:roundedSharePath(rx,top+barH+refGap,w,refH,first?2:0,last?2:0),fill:q.color,'fill-opacity':.4},svg);
       attachTip(seg,q.refTip||`<div class="t1">${esc(q.label)}</div><div class="t2">${opts.refName||'비교'} ${Math.round(q.ref/refTot*100)}%</div>`);
       rx+=w+gap;
     });
@@ -1025,12 +1031,13 @@ function deltaMix(A){
   const top3=tops.slice(0,3).reduce((a,t)=>a+t[1],0);
   const newBuy=sold.filter(d=>d.isNew).reduce((a,d)=>a+d.dBuy,0);
   const cumAvg=A.tl.buyers?Math.round(A.tl.rev/A.tl.buyers):0;
-  const note=`움직인 상품 <b>${sold.length}개</b> (판매중 ${listed.length}개 중 ${Math.round(sold.length/Math.max(1,listed.length)*100)}%)`
-    +` · 개당 평균 <b>${won(Math.round(dRev/base))}</b> <span class="zero">(누적 평균 ${won(cumAvg)})</span>`
-    +(tops.length?` · 가장 많이 팔린 시리즈 «${esc(tops[0][0])}» ${Math.round(tops[0][1]/base*100)}%${tops.length>2?` · 상위 3개 시리즈 합 ${Math.round(top3/base*100)}%`:''}`:'')
-    +(newBuy?` · 이 중 신규 등록 자료가 ${Math.round(newBuy/base*100)}%`:'');
-  const html=`<div class="mixhd">이번에 팔린 ${base}개의 구성 ${base<50?`<span class="chip">표본 ${base}개 · 하루치라 비율이 흔들립니다</span>`:''}</div>
-    <p class="note mixnote">굵은 막대 = 이번 변동 · 가는 막대 = <b>누적 전체 ${cumTot}개</b>. 색 위에 마우스를 올리면 매출 비중·보유 상품 수까지 나옵니다.</p>
+  const note=`움직인 상품 <b>${sold.length}개</b> <span class="zero">(판매중 ${listed.length}개 중 ${Math.round(sold.length/Math.max(1,listed.length)*100)}%)</span>`
+    +` · 개당 평균 <b>${won(Math.round(dRev/base))}</b> <span class="zero">(누적 ${won(cumAvg)})</span>`
+    +(tops.length?` · 최다 시리즈 «${esc(tops[0][0])}» ${Math.round(tops[0][1]/base*100)}%${tops.length>2?` <span class="zero">· 상위 3개 ${Math.round(top3/base*100)}%</span>`:''}`:'')
+    +(newBuy?` · 신규 등록분 ${Math.round(newBuy/base*100)}%`:'');
+  const html=`<div class="mixhd">이번에 팔린 ${base}개의 구성
+      <span class="zero">— 굵은 막대 이번 · 가는 막대 누적 ${cumTot}개 (색 위에 올리면 매출 비중·보유 상품 수)</span>
+      ${base<50?`<span class="chip">표본 ${base}개 · 비율이 흔들립니다</span>`:''}</div>
     <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div class="chart" id="mx-${d.k}"></div></div>`).join('')}</div>
     <p class="note mixnote">${note}</p>`;
   return {html, dims};
@@ -1104,7 +1111,7 @@ function renderDelta(A){
       <div class="tblwrap"><table><tbody>${A.removed.map(it=>`<tr><td class="nm">${esc(shortName(it))}</td><td class="num">${won(it.rev)}</td></tr>`).join('')}</tbody></table></div></div>`;
   }
   p.innerHTML=html;
-  if(mix) mix.dims.forEach(d=>shareBar($('#mx-'+d.k), d.parts, {fmt:v=>v+'개', refName:'누적'}));
+  if(mix) mix.dims.forEach(d=>shareBar($('#mx-'+d.k), d.parts, {fmt:v=>v+'개', refName:'누적', compact:true}));
   // 시리즈 묶음 펼치기/접기
   const tbl=p.querySelector('table.dg');
   if(tbl){
