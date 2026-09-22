@@ -168,6 +168,7 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:8px}
 .legend .k{display:inline-flex; align-items:center; gap:6px}
 .legend .sw{width:10px; height:10px; border-radius:3px; display:inline-block; flex:none}
+.legend .lgnm{font-weight:600}
 .zero{color:var(--muted)}
 /* 변동 탭 시리즈 묶음 */
 .dg tr.dg-g{cursor:pointer}
@@ -700,7 +701,9 @@ function shareBar(container, parts, opts={}){
   container.appendChild(svg);
   const lg=document.createElement('div');
   lg.className='legend';
-  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span>${esc(q.label)} ${fmt(q.value)} · ${Math.round(q.value/total*100)}%${q.note||''}</span>`).join('');
+  // 항목 이름도 그 색으로 칠해 막대와 눈으로 잇는다. 원색 그대로는 글자로 쓰기엔 옅어서(노랑·분홍)
+  // 글자색 쪽으로 35% 섞어 어둡게(다크 모드에서는 밝게) 맞춘다 — 색상은 유지되고 대비만 오른다.
+  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span><b class="lgnm" style="color:color-mix(in srgb, ${q.color} 65%, var(--ink))">${esc(q.label)}</b> ${fmt(q.value)} · ${Math.round(q.value/total*100)}%${q.note||''}</span>`).join('');
   container.appendChild(lg);
 }
 function roundedSharePath(x,y,w,h,rl,rr2){
