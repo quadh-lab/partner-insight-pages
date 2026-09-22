@@ -1024,7 +1024,7 @@ function deltaMix(A){
   const html=`<div class="mixhd">이번에 팔린 <b>${base}개</b>
       ${dayAvg!==null?`<span class="zero">· 직전 ${win.days}일 하루 평균 ${fmtAvg(dayAvg)}개</span>
         <span class="chip${base>=dayAvg*1.25?' acc':''}">평균의 ${Math.round(base/Math.max(.5,dayAvg)*100)}%</span>`:''}
-      <span class="zero">— 막대 길이 = 갯수, 세로 눈금(┆) = 그 항목의 하루 평균</span></div>
+      <span class="zero">— 막대 길이 = 갯수, 세로 눈금(┆) = 그 항목의 <b>같은 기간</b> 하루 평균</span></div>
     <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div id="mx-${d.k}"></div></div>`).join('')}</div>`;
   return {html, dims, scale};
 }
