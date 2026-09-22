@@ -177,6 +177,13 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .dg tr.dg-i td:first-child{padding-left:32px}
 .dg-bar{margin-top:10px}
 .dg-bar button{font-size:12.5px; padding:6px 11px}
+/* 변동 탭 구성 요약(학교급·유형·구분 비율 바) */
+.mixhd{font-size:13px; font-weight:600; margin:16px 0 3px}
+.mixnote{margin:0 0 10px; font-size:12.5px}
+.mixgrid{gap:14px 18px; margin-bottom:12px}
+.mxt{font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:5px}
+.mixgrid .legend{gap:4px 12px; font-size:12px; margin-top:7px}
+.mixgrid .legend .chip{font-size:11px; padding:1px 6px}
 
 .insights{display:flex; flex-direction:column; gap:9px}
 .insight{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
@@ -646,25 +653,25 @@ function colChart(container, pts, opts={}){
   });
   container.appendChild(svg);
 }
-// 100% 비율 바: parts=[{label,value,color,tipHtml}] — 합쳐서 100%가 되는 파트-투-홀
-function shareBar(container, parts){
+// 100% 비율 바: parts=[{label,value,color,tipHtml,ref,refTip,note}] — 합쳐서 100%가 되는 파트-투-홀
+//   ref 가 있으면 바로 아래 가는 막대로 «비교 구성»(누적 등)을 같은 순서·같은 색으로 덧그린다.
+//   opts.fmt 로 값 표기(기본 원). opts.refName 은 범례의 비교값 앞에 붙는 말.
+function shareBar(container, parts, opts={}){
   container.innerHTML='';
+  const fmt=opts.fmt||won;
   const total=parts.reduce((a,q)=>a+q.value,0);
   if(!total){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
-  const W=Math.max(280, container.clientWidth||500), H=34, barH=26, gap=2, rr=4;
+  const refTot=parts.reduce((a,q)=>a+(Number.isFinite(q.ref)?q.ref:0),0);
+  const hasRef=refTot>0, refH=7, refGap=4;
+  const W=Math.max(280, container.clientWidth||500), barH=26, H=34+(hasRef?refH+refGap:0), gap=2, rr=4;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
   const nz=parts.filter(q=>q.value>0);
   let x=0;
   nz.forEach((q,i)=>{
     const w=q.value/total*(W-(nz.length-1)*gap);
     const first=i===0, last=i===nz.length-1;
-    const d=`M${x+(first?rr:0)} 4`
-      +`h${w-(first?rr:0)-(last?rr:0)}`
-      +(last?` a${rr} ${rr} 0 0 1 ${rr} ${rr}`:'')
-      +` v${barH-2*(last||first?rr:0)>0?barH-(last?rr:0)-(first?rr:0)-( (last||first)?0:0):barH}`;
-    // 단순화: 첫/끝만 둥글게 — path 대신 두 단계로 그림
     const seg=el('path',{d:roundedSharePath(x,4,w,barH,first?rr:0,last?rr:0),fill:q.color},svg);
-    attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${won(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
+    attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${fmt(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
     const pctv=Math.round(q.value/total*100);
     if(w>=48){
       const t=el('text',{x:x+w/2,y:4+barH*0.68,'text-anchor':'middle','font-size':'12.5','font-weight':'700',fill:'#fff'},svg);
@@ -673,10 +680,21 @@ function shareBar(container, parts){
     }
     x+=w+gap;
   });
+  if(hasRef){
+    const rz=parts.filter(q=>Number.isFinite(q.ref)&&q.ref>0);
+    let rx=0;
+    rz.forEach((q,i)=>{
+      const w=q.ref/refTot*(W-(rz.length-1)*gap);
+      const first=i===0, last=i===rz.length-1;
+      const seg=el('path',{d:roundedSharePath(rx,4+barH+refGap,w,refH,first?2:0,last?2:0),fill:q.color,'fill-opacity':.4},svg);
+      attachTip(seg,q.refTip||`<div class="t1">${esc(q.label)}</div><div class="t2">${opts.refName||'비교'} ${Math.round(q.ref/refTot*100)}%</div>`);
+      rx+=w+gap;
+    });
+  }
   container.appendChild(svg);
   const lg=document.createElement('div');
   lg.className='legend';
-  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span>${esc(q.label)} ${won(q.value)} · ${Math.round(q.value/total*100)}%</span>`).join('');
+  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span>${esc(q.label)} ${fmt(q.value)} · ${Math.round(q.value/total*100)}%${q.note||''}</span>`).join('');
   container.appendChild(lg);
 }
 function roundedSharePath(x,y,w,h,rl,rr2){
@@ -955,6 +973,68 @@ function renderKpis(A){
       <div class="d ${k.up?'up':k.down?'down':''}">${k.d||'&nbsp;'}</div>
     </div>`).join('');
 }
+/* 변동 탭 상단 «구성 요약» — 이번에 팔린 갯수를 학교급·자료 유형·구분으로 나누고
+   누적 구성(가는 막대)과 견줘 «오늘 유난히 팔린 축»을 드러낸다.
+   비중은 구매 갯수 기준(금액·보유 상품 수는 툴팁) — 갯수여야 자료끼리 값이 섞이지 않는다. */
+const MIX_LEVEL=g=>/^고/.test(g)?'고등':/^중/.test(g)?'중등':'학년 미상';
+const MIX_TYPE=t=>t==='본문 워크북'?'워크북':(t||'기타');   // 중학 «본문 워크북»은 유형 4종 기준으로 워크북에 합친다
+const MIX_DIMS=[
+  // sub: 툴팁에 한 단계 더 쪼갠 내역을 붙인다(학교급 → 학년, 유형 → 원래 표기)
+  {k:'lvl', title:'학교급', of:it=>MIX_LEVEL(it.grade), sub:it=>it.grade==='고등'?'학년 무관':it.grade,
+   order:[['고등','var(--s1)'],['중등','var(--s2)'],['학년 미상','var(--baseline)']]},
+  {k:'type', title:'자료 유형', of:it=>MIX_TYPE(it.type), sub:it=>it.type,
+   order:[['분석자료','var(--s5)'],['워크북','var(--s1)'],['변형문제','var(--s3)'],['파이널','var(--s4)'],['기타','var(--baseline)']]},
+  {k:'cat', title:'구분', of:it=>it.category, sub:it=>it.pub!=='기타'?it.pub:it.course,
+   order:[['교과서','var(--s1)'],['수능/모의고사','var(--s2)'],['부교재','var(--s3)']]},
+];
+function deltaMix(A){
+  const sold=A.deltas.filter(d=>d.dBuy>0);
+  const base=sold.reduce((a,d)=>a+d.dBuy,0);
+  if(!base) return null;
+  const dRev=sold.reduce((a,d)=>a+d.dRev,0);
+  const listed=A.latest.items.filter(it=>it.status==='판매중');
+  const cumTot=A.latest.items.reduce((a,it)=>a+it.buyers,0);
+  const dims=MIX_DIMS.map(D=>{
+    const g=new Map();
+    const get=k=>{ if(!g.has(k)) g.set(k,{buy:0,rev:0,cum:0,own:0,sub:new Map()}); return g.get(k); };
+    sold.forEach(d=>{ const s=get(D.of(d.it)); s.buy+=d.dBuy; s.rev+=d.dRev;
+      const sk=D.sub?D.sub(d.it):null; if(sk) s.sub.set(sk,(s.sub.get(sk)||0)+d.dBuy); });
+    A.latest.items.forEach(it=>{ get(D.of(it)).cum+=it.buyers; });
+    listed.forEach(it=>{ get(D.of(it)).own++; });
+    // order 에 없는 라벨이 생기면(분류기 확장) 뒤에 붙여 100%가 되게 한다
+    const order=[...D.order, ...[...g.keys()].filter(k=>!D.order.some(([lb])=>lb===k)).map(k=>[k,'var(--baseline)'])];
+    const parts=order.filter(([lb])=>g.has(lb)&&(g.get(lb).buy>0||g.get(lb).cum>0)).map(([lb,color])=>{
+      const s=g.get(lb);
+      const p=Math.round(s.buy/base*100), rp=cumTot?Math.round(s.cum/cumTot*100):0, gp=p-rp;
+      const chip = Math.abs(gp)<8 ? ''
+        : rp? ` <span class="chip ${gp>0?'acc':''}">${gp>0?'▲':'▼'} 누적의 ${(p/rp).toFixed(1)}배</span>`
+            : ` <span class="chip acc">▲ 새 축</span>`;
+      return {label:lb, value:s.buy, color, ref:s.cum,
+        note:` <span class="zero">누적 ${rp}%</span>`+chip,
+        tipHtml:`<div class="t1">${esc(lb)}</div><div class="t2">이번 ${s.buy}개 · ${p}% · 매출 ${s.rev<0?'−':'+'}${won(Math.abs(s.rev))} (매출 비중 ${dRev?Math.round(s.rev/dRev*100):0}%)<br>누적 ${s.cum}개 · ${rp}% · 판매중 상품 ${s.own}개 (보유 ${listed.length?Math.round(s.own/listed.length*100):0}%)`
+          +(()=>{ const sb=[...s.sub.entries()].filter(([k2])=>k2&&k2!==lb).sort((a,b)=>b[1]-a[1]).slice(0,6);   // 라벨과 같은 이름은 되풀이하지 않는다
+                  return sb.length?`<br>${sb.map(([k2,v])=>esc(k2)+' '+v+'개').join(' · ')}`:''; })()+`</div>`,
+        refTip:`<div class="t1">${esc(lb)} — 누적 구성</div><div class="t2">${s.cum}개 · ${rp}% (이번 ${p}%)</div>`};
+    });
+    return {k:D.k, title:D.title, parts};
+  });
+  // 한 줄 요약: 폭(몇 개 상품이 움직였나) · 개당 평균가 · 집중도 · 신규 등록 기여
+  const bySeries=new Map();
+  sold.forEach(d=>{ const k=seriesKey(d.it); bySeries.set(k,(bySeries.get(k)||0)+d.dBuy); });
+  const tops=[...bySeries.entries()].sort((a,b)=>b[1]-a[1]);
+  const top3=tops.slice(0,3).reduce((a,t)=>a+t[1],0);
+  const newBuy=sold.filter(d=>d.isNew).reduce((a,d)=>a+d.dBuy,0);
+  const cumAvg=A.tl.buyers?Math.round(A.tl.rev/A.tl.buyers):0;
+  const note=`움직인 상품 <b>${sold.length}개</b> (판매중 ${listed.length}개 중 ${Math.round(sold.length/Math.max(1,listed.length)*100)}%)`
+    +` · 개당 평균 <b>${won(Math.round(dRev/base))}</b> <span class="zero">(누적 평균 ${won(cumAvg)})</span>`
+    +(tops.length?` · 가장 많이 팔린 시리즈 «${esc(tops[0][0])}» ${Math.round(tops[0][1]/base*100)}%${tops.length>2?` · 상위 3개 시리즈 합 ${Math.round(top3/base*100)}%`:''}`:'')
+    +(newBuy?` · 이 중 신규 등록 자료가 ${Math.round(newBuy/base*100)}%`:'');
+  const html=`<div class="mixhd">이번에 팔린 ${base}개의 구성 ${base<50?`<span class="chip">표본 ${base}개 · 하루치라 비율이 흔들립니다</span>`:''}</div>
+    <p class="note mixnote">굵은 막대 = 이번 변동 · 가는 막대 = <b>누적 전체 ${cumTot}개</b>. 색 위에 마우스를 올리면 매출 비중·보유 상품 수까지 나옵니다.</p>
+    <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div class="chart" id="mx-${d.k}"></div></div>`).join('')}</div>
+    <p class="note mixnote">${note}</p>`;
+  return {html, dims};
+}
 function renderDelta(A){
   const p=$('#p-delta');
   if(!A.prev){
@@ -973,6 +1053,8 @@ function renderDelta(A){
     <h2>${A.prev.date} → ${A.latest.date} 변동 <span class="chip">${gap}일 간격</span></h2>
     <p class="desc">이 기간 매출 <b class="${dRev>=0?'up':'dn'}">${dRev>=0?'+':'−'}${won(Math.abs(dRev))}</b> · 구매 <b class="${dBuy>=0?'up':'dn'}">${dBuy>=0?'+':'−'}${Math.abs(dBuy)}개</b>${news.length?` · 신규 등록 ${news.length}개`:''}${cancelled>0?` · <span class="zero">결제 후 취소 ${cancelled}건은 +1 −1 로 상쇄해 갯수에 넣지 않았습니다</span>`:''}${A.removed.length?` · 목록에서 빠진 자료 ${A.removed.length}개`:''}</p>
     ${A.latest.items.length<A.prev.items.length?`<p class="desc" style="color:var(--warn)">⚠ 자료 수가 ${A.prev.items.length}개 → ${A.latest.items.length}개로 줄었습니다. 일부 페이지만 붙여넣었을 수 있으니, 모든 페이지를 이어서 붙여넣은 뒤 다시 확인하세요 — 이 상태의 변동 수치는 신뢰가 낮습니다.</p>`:''}`;
+  const mix=deltaMix(A);
+  if(mix) html+=mix.html;
   if(changed.length){
     // 시리즈(학년 · 교재 · 출판사)별로 묶고, 펼치면 상품별 행이 나온다. 묶음 행에 시리즈 합계와 상품 수·자료 유형별 개수를 적는다.
     const gm=new Map();
@@ -1022,6 +1104,7 @@ function renderDelta(A){
       <div class="tblwrap"><table><tbody>${A.removed.map(it=>`<tr><td class="nm">${esc(shortName(it))}</td><td class="num">${won(it.rev)}</td></tr>`).join('')}</tbody></table></div></div>`;
   }
   p.innerHTML=html;
+  if(mix) mix.dims.forEach(d=>shareBar($('#mx-'+d.k), d.parts, {fmt:v=>v+'개', refName:'누적'}));
   // 시리즈 묶음 펼치기/접기
   const tbl=p.querySelector('table.dg');
   if(tbl){
