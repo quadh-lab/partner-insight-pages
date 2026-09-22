@@ -987,14 +987,15 @@ function renderKpis(A){
    비중은 구매 갯수 기준(금액·보유 상품 수는 툴팁) — 갯수여야 자료끼리 값이 섞이지 않는다. */
 const MIX_LEVEL=g=>/^고/.test(g)?'고등':/^중/.test(g)?'중등':'학년 미상';
 const MIX_TYPE=t=>t==='본문 워크북'?'워크북':(t||'기타');   // 중학 «본문 워크북»은 유형 4종 기준으로 워크북에 합친다
+// 순서 = 화면 왼쪽부터. «학년»(고등/중등)은 거의 매일 고등 100% 라 맨 오른쪽에 둔다(2026-09-22 사용자).
+// sub: 툴팁에 한 단계 더 쪼갠 내역을 붙인다(학년 → 고1·고2·학년 무관, 유형 → 원래 표기, 구분 → 출판사·교재)
 const MIX_DIMS=[
-  // sub: 툴팁에 한 단계 더 쪼갠 내역을 붙인다(학교급 → 학년, 유형 → 원래 표기)
-  {k:'lvl', title:'학교급', of:it=>MIX_LEVEL(it.grade), sub:it=>it.grade==='고등'?'학년 무관':it.grade,
-   order:[['고등','var(--s1)'],['중등','var(--s2)'],['학년 미상','var(--baseline)']]},
   {k:'type', title:'자료 유형', of:it=>MIX_TYPE(it.type), sub:it=>it.type,
    order:[['분석자료','var(--s5)'],['워크북','var(--s1)'],['변형문제','var(--s3)'],['파이널','var(--s4)'],['기타','var(--baseline)']]},
   {k:'cat', title:'구분', of:it=>it.category, sub:it=>it.pub!=='기타'?it.pub:it.course,
    order:[['교과서','var(--s1)'],['수능/모의고사','var(--s2)'],['부교재','var(--s3)']]},
+  {k:'lvl', title:'학년', of:it=>MIX_LEVEL(it.grade), sub:it=>it.grade==='고등'?'학년 무관':it.grade,
+   order:[['고등','var(--s1)'],['중등','var(--s2)'],['학년 미상','var(--baseline)']]},
 ];
 function deltaMix(A){
   const sold=A.deltas.filter(d=>d.dBuy>0);
@@ -1015,9 +1016,11 @@ function deltaMix(A){
     const parts=order.filter(([lb])=>g.has(lb)&&(g.get(lb).buy>0||g.get(lb).cum>0)).map(([lb,color])=>{
       const s=g.get(lb);
       const p=Math.round(s.buy/base*100), rp=cumTot?Math.round(s.cum/cumTot*100):0, gp=p-rp;
+      // 칩은 «%p 도 배수도» 눈에 띌 때만 — 8%p 만 보면 58%→50% 같은 «0.9배»가 잡음으로 붙는다
+      const rt=rp?p/rp:0;
       const chip = Math.abs(gp)<8 ? ''
-        : rp? ` <span class="chip ${gp>0?'acc':''}">${gp>0?'▲':'▼'} 누적의 ${(p/rp).toFixed(1)}배</span>`
-            : ` <span class="chip acc">▲ 새 축</span>`;
+        : !rp? ` <span class="chip acc">▲ 새 축</span>`
+        : (rt>=1.4||rt<=.7)? ` <span class="chip ${gp>0?'acc':''}">${gp>0?'▲':'▼'} 누적의 ${rt.toFixed(1)}배</span>` : '';
       return {label:lb, value:s.buy, color, ref:s.cum,
         note:` <span class="zero">누적 ${rp}%</span>`+chip,
         tipHtml:`<div class="t1">${esc(lb)}</div><div class="t2">이번 ${s.buy}개 · ${p}% · 매출 ${s.rev<0?'−':'+'}${won(Math.abs(s.rev))} (매출 비중 ${dRev?Math.round(s.rev/dRev*100):0}%)<br>누적 ${s.cum}개 · ${rp}% · 판매중 상품 ${s.own}개 (보유 ${listed.length?Math.round(s.own/listed.length*100):0}%)`
