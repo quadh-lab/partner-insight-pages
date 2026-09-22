@@ -1068,13 +1068,19 @@ function renderDelta(A){
   }
   const gap=daysBetween(A.prev.date,A.latest.date);
   const changed=A.deltas.filter(d=>d.dRev!==0||d.dBuy!==0).sort((a,b)=>b.dRev-a.dRev);
-  const news=A.deltas.filter(d=>d.isNew);
   const stch=A.deltas.filter(d=>d.statusChanged);
-  const dRev=A.tl.rev-A.tp.rev, dBuy=A.tl.buyers-A.tp.buyers;
   const pmc=itemMap(A.prev); const cancelled=A.latest.items.reduce((a,it)=>a+((it.cancels||0)-((pmc.get(it.id)||{}).cancels||0)),0);
+  const ago=daysBetween(A.latest.date, todaySeoul());
+  // 머리글은 날짜 한 줄. 매출·구매 증감은 바로 위 KPI 에 이미 있어 되풀이하지 않는다(2026-09-22 사용자).
+  // 단서(취소 상쇄·빠진 자료·하루가 아닌 간격)는 수치를 읽는 법이 달라지므로 있을 때만 한 줄 남긴다.
+  const caveats=[
+    gap!==1?`${gap}일 만의 수집 — ${A.prev.date} 대비입니다`:null,
+    cancelled>0?`결제 후 취소 ${cancelled}건은 +1 −1 로 상쇄해 갯수에 넣지 않았습니다`:null,
+    A.removed.length?`목록에서 빠진 자료 ${A.removed.length}개`:null,
+  ].filter(Boolean);
   let html=`<div class="card">
-    <h2>${A.prev.date} → ${A.latest.date} 변동 <span class="chip">${gap}일 간격</span></h2>
-    <p class="desc">이 기간 매출 <b class="${dRev>=0?'up':'dn'}">${dRev>=0?'+':'−'}${won(Math.abs(dRev))}</b> · 구매 <b class="${dBuy>=0?'up':'dn'}">${dBuy>=0?'+':'−'}${Math.abs(dBuy)}개</b>${news.length?` · 신규 등록 ${news.length}개`:''}${cancelled>0?` · <span class="zero">결제 후 취소 ${cancelled}건은 +1 −1 로 상쇄해 갯수에 넣지 않았습니다</span>`:''}${A.removed.length?` · 목록에서 빠진 자료 ${A.removed.length}개`:''}</p>
+    <h2>${A.latest.date} <span class="zero">(${ago===0?'오늘':ago===1?'어제':ago+'일 전'})</span></h2>
+    ${caveats.length?`<p class="desc">${caveats.join(' · ')}</p>`:''}
     ${A.latest.items.length<A.prev.items.length?`<p class="desc" style="color:var(--warn)">⚠ 자료 수가 ${A.prev.items.length}개 → ${A.latest.items.length}개로 줄었습니다. 일부 페이지만 붙여넣었을 수 있으니, 모든 페이지를 이어서 붙여넣은 뒤 다시 확인하세요 — 이 상태의 변동 수치는 신뢰가 낮습니다.</p>`:''}`;
   const mix=deltaMix(A);
   if(mix) html+=mix.html;
