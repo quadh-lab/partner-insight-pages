@@ -178,17 +178,23 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .dg tr.dg-i td:first-child{padding-left:32px}
 .dg-bar{margin-top:10px}
 .dg-bar button{font-size:12.5px; padding:6px 11px}
-/* 변동 탭 구성 요약(학교급·유형·구분 비율 바) — 표 위의 한 뼘이라 얇게 */
-.mixhd{font-size:12.5px; font-weight:600; margin:12px 0 7px; line-height:1.5}
+/* 변동 탭 구성 요약(자료 유형·구분·학년) — 비율이 아니라 «갯수» 막대. 표 위의 한 뼘이라 얇게 */
+.mixhd{font-size:12.5px; font-weight:600; margin:12px 0 9px; line-height:1.5}
 .mixhd .zero{font-weight:400}
 .mixhd .chip{font-size:11px; padding:1px 7px; vertical-align:1px}
-.mixnote{margin:8px 0 2px; font-size:12px; line-height:1.5}
-.mixgrid{gap:10px 18px; margin-bottom:0}
-.mxt{font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:3px}
-.mixgrid .legend{display:block; font-size:11.5px; line-height:1.45; margin-top:5px}
-.mixgrid .legend .k{display:flex; align-items:baseline; gap:5px}
-.mixgrid .legend .sw{width:8px; height:8px; border-radius:2px; position:relative; top:-1px}
-.mixgrid .legend .chip{font-size:10.5px; padding:0 5px; margin-left:1px}
+.mixnote{margin:10px 0 2px; font-size:12px; line-height:1.5}
+.mixgrid{gap:12px 18px; margin-bottom:0}
+.mxt{font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:5px}
+.cb{display:grid; grid-template-columns:auto minmax(46px,1fr) auto auto; gap:5px 7px; align-items:center; font-size:11.5px}
+.cb-l{font-weight:600; white-space:nowrap}
+.cb-t{position:relative; height:11px; border-radius:3px; background:var(--surface-2)}
+.cb-t i{position:absolute; left:0; top:0; bottom:0; border-radius:3px}
+.cb-t u{position:absolute; top:-3px; bottom:-3px; width:2px; margin-left:-1px; background:var(--baseline); text-decoration:none}
+.cb-v{font-weight:700; font-variant-numeric:tabular-nums; text-align:right}
+.cb-a{color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums}
+.cb-m{font-size:10px; font-weight:700}
+.cb-m.up{color:var(--good)}
+.cb-m.dn{color:var(--crit)}
 
 .insights{display:flex; flex-direction:column; gap:9px}
 .insight{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
@@ -658,19 +664,12 @@ function colChart(container, pts, opts={}){
   });
   container.appendChild(svg);
 }
-// 100% 비율 바: parts=[{label,value,color,tipHtml,ref,refTip,note}] — 합쳐서 100%가 되는 파트-투-홀
-//   ref 가 있으면 바로 아래 가는 막대로 «비교 구성»(누적 등)을 같은 순서·같은 색으로 덧그린다.
-//   opts.fmt 로 값 표기(기본 원). opts.refName 은 범례의 비교값 앞에 붙는 말.
-function shareBar(container, parts, opts={}){
+// 100% 비율 바: parts=[{label,value,color,tipHtml}] — 합쳐서 100%가 되는 파트-투-홀
+function shareBar(container, parts){
   container.innerHTML='';
-  const fmt=opts.fmt||won;
   const total=parts.reduce((a,q)=>a+q.value,0);
   if(!total){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
-  const refTot=parts.reduce((a,q)=>a+(Number.isFinite(q.ref)?q.ref:0),0);
-  const cm=!!opts.compact;                       // compact: 요약용 얇은 바 (변동 탭 구성 요약)
-  const hasRef=refTot>0, refH=cm?4:7, refGap=cm?3:4;
-  const W=Math.max(280, container.clientWidth||500), barH=cm?15:26, top=cm?1:4,
-        H=top+barH+(hasRef?refH+refGap:0)+(cm?1:4), gap=2, rr=cm?3:4;
+  const W=Math.max(280, container.clientWidth||500), barH=26, top=4, H=34, gap=2, rr=4;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,height:H});
   const nz=parts.filter(q=>q.value>0);
   let x=0;
@@ -678,32 +677,21 @@ function shareBar(container, parts, opts={}){
     const w=q.value/total*(W-(nz.length-1)*gap);
     const first=i===0, last=i===nz.length-1;
     const seg=el('path',{d:roundedSharePath(x,top,w,barH,first?rr:0,last?rr:0),fill:q.color},svg);
-    attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${fmt(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
+    attachTip(seg,q.tipHtml||`<div class="t1">${esc(q.label)}</div><div class="t2">${won(q.value)} (${Math.round(q.value/total*100)}%)</div>`);
     const pctv=Math.round(q.value/total*100);
-    if(w>=(cm?32:48)){
-      const t=el('text',{x:x+w/2,y:top+barH*(cm?.74:.68),'text-anchor':'middle','font-size':cm?'10.5':'12.5','font-weight':'700',fill:'#fff'},svg);
+    if(w>=48){
+      const t=el('text',{x:x+w/2,y:top+barH*.68,'text-anchor':'middle','font-size':'12.5','font-weight':'700',fill:'#fff'},svg);
       t.textContent=pctv+'%';
       t.style.pointerEvents='none';
     }
     x+=w+gap;
   });
-  if(hasRef){
-    const rz=parts.filter(q=>Number.isFinite(q.ref)&&q.ref>0);
-    let rx=0;
-    rz.forEach((q,i)=>{
-      const w=q.ref/refTot*(W-(rz.length-1)*gap);
-      const first=i===0, last=i===rz.length-1;
-      const seg=el('path',{d:roundedSharePath(rx,top+barH+refGap,w,refH,first?2:0,last?2:0),fill:q.color,'fill-opacity':.4},svg);
-      attachTip(seg,q.refTip||`<div class="t1">${esc(q.label)}</div><div class="t2">${opts.refName||'비교'} ${Math.round(q.ref/refTot*100)}%</div>`);
-      rx+=w+gap;
-    });
-  }
   container.appendChild(svg);
   const lg=document.createElement('div');
   lg.className='legend';
   // 항목 이름도 그 색으로 칠해 막대와 눈으로 잇는다. 원색 그대로는 글자로 쓰기엔 옅어서(노랑·분홍)
   // 글자색 쪽으로 35% 섞어 어둡게(다크 모드에서는 밝게) 맞춘다 — 색상은 유지되고 대비만 오른다.
-  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span><b class="lgnm" style="color:color-mix(in srgb, ${q.color} 65%, var(--ink))">${esc(q.label)}</b> ${fmt(q.value)} · ${Math.round(q.value/total*100)}%${q.note||''}</span>`).join('');
+  lg.innerHTML=parts.map(q=>`<span class="k"><span class="sw" style="background:${q.color}"></span><b class="lgnm" style="color:color-mix(in srgb, ${q.color} 65%, var(--ink))">${esc(q.label)}</b> ${won(q.value)} · ${Math.round(q.value/total*100)}%</span>`).join('');
   container.appendChild(lg);
 }
 function roundedSharePath(x,y,w,h,rl,rr2){
@@ -1003,7 +991,7 @@ function deltaMix(A){
   if(!base) return null;
   const dRev=sold.reduce((a,d)=>a+d.dRev,0);
   const listed=A.latest.items.filter(it=>it.status==='판매중');
-  const cumTot=A.latest.items.reduce((a,it)=>a+it.buyers,0);
+  const win=mixWindow(A);                       // 직전 7일 하루 평균 (없으면 null)
   const dims=MIX_DIMS.map(D=>{
     const g=new Map();
     const get=k=>{ if(!g.has(k)) g.set(k,{buy:0,rev:0,cum:0,own:0,sub:new Map()}); return g.get(k); };
@@ -1011,26 +999,30 @@ function deltaMix(A){
       const sk=D.sub?D.sub(d.it):null; if(sk) s.sub.set(sk,(s.sub.get(sk)||0)+d.dBuy); });
     A.latest.items.forEach(it=>{ get(D.of(it)).cum+=it.buyers; });
     listed.forEach(it=>{ get(D.of(it)).own++; });
-    // order 에 없는 라벨이 생기면(분류기 확장) 뒤에 붙여 100%가 되게 한다
+    // order 에 없는 라벨이 생기면(분류기 확장) 뒤에 붙인다
     const order=[...D.order, ...[...g.keys()].filter(k=>!D.order.some(([lb])=>lb===k)).map(k=>[k,'var(--baseline)'])];
-    const parts=order.filter(([lb])=>g.has(lb)&&(g.get(lb).buy>0||g.get(lb).cum>0)).map(([lb,color])=>{
-      const s=g.get(lb);
-      const p=Math.round(s.buy/base*100), rp=cumTot?Math.round(s.cum/cumTot*100):0, gp=p-rp;
-      // 칩은 «%p 도 배수도» 눈에 띌 때만 — 8%p 만 보면 58%→50% 같은 «0.9배»가 잡음으로 붙는다
-      const rt=rp?p/rp:0;
-      const chip = Math.abs(gp)<8 ? ''
-        : !rp? ` <span class="chip acc">▲ 새 축</span>`
-        : (rt>=1.4||rt<=.7)? ` <span class="chip ${gp>0?'acc':''}">${gp>0?'▲':'▼'} 누적의 ${rt.toFixed(1)}배</span>` : '';
-      return {label:lb, value:s.buy, color, ref:s.cum,
-        note:` <span class="zero">누적 ${rp}%</span>`+chip,
-        tipHtml:`<div class="t1">${esc(lb)}</div><div class="t2">이번 ${s.buy}개 · ${p}% · 매출 ${s.rev<0?'−':'+'}${won(Math.abs(s.rev))} (매출 비중 ${dRev?Math.round(s.rev/dRev*100):0}%)<br>누적 ${s.cum}개 · ${rp}% · 판매중 상품 ${s.own}개 (보유 ${listed.length?Math.round(s.own/listed.length*100):0}%)`
-          +(()=>{ const sb=[...s.sub.entries()].filter(([k2])=>k2&&k2!==lb).sort((a,b)=>b[1]-a[1]).slice(0,6);   // 라벨과 같은 이름은 되풀이하지 않는다
-                  return sb.length?`<br>${sb.map(([k2,v])=>esc(k2)+' '+v+'개').join(' · ')}`:''; })()+`</div>`,
-        refTip:`<div class="t1">${esc(lb)} — 누적 구성</div><div class="t2">${s.cum}개 · ${rp}% (이번 ${p}%)</div>`};
-    });
-    return {k:D.k, title:D.title, parts};
+    const rows=order.filter(([lb])=>{ const s=g.get(lb); return s && (s.buy>0 || s.cum>0 || (win&&win.get(D.k,lb)>0)); })
+      .map(([lb,color])=>{
+        const s=g.get(lb);
+        const prev=win?win.get(D.k,lb):0, avg=win?prev/win.days:null;
+        // ▲▼ 는 «갯수로도 배수로도» 눈에 띌 때만 — 1~2개 차이에 화살표가 붙으면 잡음이 된다
+        let mark='';
+        if(avg!==null && Math.abs(s.buy-avg)>=3){
+          if(avg<.5? s.buy>=3 : s.buy/avg>=1.6) mark=' <span class="cb-m up">▲</span>';
+          else if(avg>=.5 && s.buy/avg<=.5) mark=' <span class="cb-m dn">▼</span>';
+        }
+        return {label:lb, color, now:s.buy, avg, mark,
+          tipHtml:`<div class="t1">${esc(lb)}</div><div class="t2">이번 <b>${s.buy}개</b> · 매출 ${s.rev<0?'−':'+'}${won(Math.abs(s.rev))}`
+            +(win?`<br>직전 ${win.days}일 ${prev}개 · 하루 평균 ${fmtAvg(avg)}개 <span class="zero">(${md(win.from)}~${md(win.to)})</span>`:'')
+            +`<br>누적 ${s.cum}개 · 판매중 상품 ${s.own}개`
+            +(()=>{ const sb=[...s.sub.entries()].filter(([k2])=>k2&&k2!==lb).sort((a,b)=>b[1]-a[1]).slice(0,6);   // 라벨과 같은 이름은 되풀이하지 않는다
+                    return sb.length?`<br>${sb.map(([k2,v])=>esc(k2)+' '+v+'개').join(' · ')}`:''; })()+`</div>`};
+      });
+    return {k:D.k, title:D.title, rows};
   });
-  // 한 줄 요약: 폭(몇 개 상품이 움직였나) · 개당 평균가 · 집중도 · 신규 등록 기여
+  // 막대 길이 자는 세 축이 같이 쓴다 — 같은 길이면 같은 갯수로 읽히게
+  const scale=Math.max(1, ...dims.flatMap(d=>d.rows.map(r=>Math.max(r.now, r.avg||0))));
+  // 한 줄 요약: 폭(몇 개 상품이 움직였나) · 개당 평균가 · 집중도 · 신규 등록분
   const bySeries=new Map();
   sold.forEach(d=>{ const k=seriesKey(d.it); bySeries.set(k,(bySeries.get(k)||0)+d.dBuy); });
   const tops=[...bySeries.entries()].sort((a,b)=>b[1]-a[1]);
@@ -1039,14 +1031,46 @@ function deltaMix(A){
   const cumAvg=A.tl.buyers?Math.round(A.tl.rev/A.tl.buyers):0;
   const note=`움직인 상품 <b>${sold.length}개</b> <span class="zero">(판매중 ${listed.length}개 중 ${Math.round(sold.length/Math.max(1,listed.length)*100)}%)</span>`
     +` · 개당 평균 <b>${won(Math.round(dRev/base))}</b> <span class="zero">(누적 ${won(cumAvg)})</span>`
-    +(tops.length?` · 최다 시리즈 «${esc(tops[0][0])}» ${Math.round(tops[0][1]/base*100)}%${tops.length>2?` <span class="zero">· 상위 3개 ${Math.round(top3/base*100)}%</span>`:''}`:'')
-    +(newBuy?` · 신규 등록분 ${Math.round(newBuy/base*100)}%`:'');
-  const html=`<div class="mixhd">이번에 팔린 ${base}개의 구성
-      <span class="zero">— 굵은 막대 이번 · 가는 막대 누적 ${cumTot}개 (색 위에 올리면 매출 비중·보유 상품 수)</span>
-      ${base<50?`<span class="chip">표본 ${base}개 · 비율이 흔들립니다</span>`:''}</div>
-    <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div class="chart" id="mx-${d.k}"></div></div>`).join('')}</div>
+    +(tops.length?` · 최다 시리즈 «${esc(tops[0][0])}» ${tops[0][1]}개${tops.length>2?` <span class="zero">· 상위 3개 ${top3}개</span>`:''}`:'')
+    +(newBuy?` · 신규 등록분 ${newBuy}개`:'');
+  const dayAvg=win?win.total/win.days:null;
+  const html=`<div class="mixhd">이번에 팔린 <b>${base}개</b>
+      ${dayAvg!==null?`<span class="zero">· 직전 ${win.days}일 하루 평균 ${fmtAvg(dayAvg)}개</span>
+        <span class="chip${base>=dayAvg*1.25?' acc':''}">평균의 ${Math.round(base/Math.max(.5,dayAvg)*100)}%</span>`:''}
+      <span class="zero">— 막대 길이 = 갯수, 세로 눈금(┆) = 그 항목의 하루 평균</span></div>
+    <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div id="mx-${d.k}"></div></div>`).join('')}</div>
     <p class="note mixnote">${note}</p>`;
-  return {html, dims};
+  return {html, dims, scale};
+}
+// 직전 N일(이번 변동은 빼고) 의 자료별 증가분을 축·항목별로 모은다 — 막대의 «하루 평균» 눈금
+function mixWindow(A, days=7){
+  const S=A.snaps, n=S.length;
+  if(n<3) return null;
+  const to=S[n-2].date;                       // 이번 변동의 시작점 = 창의 끝
+  const acc=new Map(); let covered=0, from=to, total=0;
+  for(let i=n-2;i>=1;i--){
+    const span=daysBetween(S[i-1].date, to);
+    if(span>days) break;
+    const pm=itemMap(S[i-1]);
+    S[i].items.forEach(it=>{
+      const p=pm.get(it.id), db=it.buyers-(p?p.buyers:0);
+      if(db>0){ total+=db; MIX_DIMS.forEach(D=>{ const k=D.k+'|'+D.of(it); acc.set(k,(acc.get(k)||0)+db); }); }
+    });
+    covered=span; from=S[i-1].date;
+  }
+  if(!covered) return null;
+  return {days:covered, from, to, total, get:(k,lb)=>acc.get(k+'|'+lb)||0};
+}
+const fmtAvg=v=>v>=10?String(Math.round(v)):String(Math.round(v*10)/10);
+// 갯수 가로 막대 + 하루 평균 눈금. rows=[{label,color,now,avg,mark,tipHtml}]
+function countBars(container, rows, scale){
+  container.innerHTML=`<div class="cb">${rows.map((r,i)=>
+    `<span class="cb-l" style="color:color-mix(in srgb, ${r.color} 65%, var(--ink))">${esc(r.label)}</span>`
+    +`<span class="cb-t" data-i="${i}"><i style="width:${Math.min(100,r.now/scale*100).toFixed(1)}%;background:${r.color}"></i>`
+      +(r.avg>0?`<u style="left:${Math.min(100,r.avg/scale*100).toFixed(1)}%"></u>`:'')+`</span>`
+    +`<b class="cb-v">${r.now}</b>`
+    +`<span class="cb-a">${r.avg!==null?`평균 ${fmtAvg(r.avg)}`:''}${r.mark||''}</span>`).join('')}</div>`;
+  container.querySelectorAll('.cb-t').forEach(t=>attachTip(t, rows[+t.dataset.i].tipHtml));
 }
 function renderDelta(A){
   const p=$('#p-delta');
@@ -1117,7 +1141,7 @@ function renderDelta(A){
       <div class="tblwrap"><table><tbody>${A.removed.map(it=>`<tr><td class="nm">${esc(shortName(it))}</td><td class="num">${won(it.rev)}</td></tr>`).join('')}</tbody></table></div></div>`;
   }
   p.innerHTML=html;
-  if(mix) mix.dims.forEach(d=>shareBar($('#mx-'+d.k), d.parts, {fmt:v=>v+'개', refName:'누적', compact:true}));
+  if(mix) mix.dims.forEach(d=>countBars($('#mx-'+d.k), d.rows, mix.scale));
   // 시리즈 묶음 펼치기/접기
   const tbl=p.querySelector('table.dg');
   if(tbl){
