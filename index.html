@@ -182,8 +182,7 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .mixhd{font-size:12.5px; font-weight:600; margin:12px 0 9px; line-height:1.5}
 .mixhd .zero{font-weight:400}
 .mixhd .chip{font-size:11px; padding:1px 7px; vertical-align:1px}
-.mixnote{margin:10px 0 2px; font-size:12px; line-height:1.5}
-.mixgrid{gap:12px 18px; margin-bottom:0}
+.mixgrid{gap:12px 18px; margin-bottom:14px}
 .mxt{font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:5px}
 .cb{display:grid; grid-template-columns:auto minmax(46px,1fr) auto auto; gap:5px 7px; align-items:center; font-size:11.5px}
 .cb-l{font-weight:600; white-space:nowrap}
@@ -989,7 +988,6 @@ function deltaMix(A){
   const sold=A.deltas.filter(d=>d.dBuy>0);
   const base=sold.reduce((a,d)=>a+d.dBuy,0);
   if(!base) return null;
-  const dRev=sold.reduce((a,d)=>a+d.dRev,0);
   const listed=A.latest.items.filter(it=>it.status==='판매중');
   const win=mixWindow(A);                       // 직전 7일 하루 평균 (없으면 null)
   const dims=MIX_DIMS.map(D=>{
@@ -1022,24 +1020,12 @@ function deltaMix(A){
   });
   // 막대 길이 자는 세 축이 같이 쓴다 — 같은 길이면 같은 갯수로 읽히게
   const scale=Math.max(1, ...dims.flatMap(d=>d.rows.map(r=>Math.max(r.now, r.avg||0))));
-  // 한 줄 요약: 폭(몇 개 상품이 움직였나) · 개당 평균가 · 집중도 · 신규 등록분
-  const bySeries=new Map();
-  sold.forEach(d=>{ const k=seriesKey(d.it); bySeries.set(k,(bySeries.get(k)||0)+d.dBuy); });
-  const tops=[...bySeries.entries()].sort((a,b)=>b[1]-a[1]);
-  const top3=tops.slice(0,3).reduce((a,t)=>a+t[1],0);
-  const newBuy=sold.filter(d=>d.isNew).reduce((a,d)=>a+d.dBuy,0);
-  const cumAvg=A.tl.buyers?Math.round(A.tl.rev/A.tl.buyers):0;
-  const note=`움직인 상품 <b>${sold.length}개</b> <span class="zero">(판매중 ${listed.length}개 중 ${Math.round(sold.length/Math.max(1,listed.length)*100)}%)</span>`
-    +` · 개당 평균 <b>${won(Math.round(dRev/base))}</b> <span class="zero">(누적 ${won(cumAvg)})</span>`
-    +(tops.length?` · 최다 시리즈 «${esc(tops[0][0])}» ${tops[0][1]}개${tops.length>2?` <span class="zero">· 상위 3개 ${top3}개</span>`:''}`:'')
-    +(newBuy?` · 신규 등록분 ${newBuy}개`:'');
   const dayAvg=win?win.total/win.days:null;
   const html=`<div class="mixhd">이번에 팔린 <b>${base}개</b>
       ${dayAvg!==null?`<span class="zero">· 직전 ${win.days}일 하루 평균 ${fmtAvg(dayAvg)}개</span>
         <span class="chip${base>=dayAvg*1.25?' acc':''}">평균의 ${Math.round(base/Math.max(.5,dayAvg)*100)}%</span>`:''}
       <span class="zero">— 막대 길이 = 갯수, 세로 눈금(┆) = 그 항목의 하루 평균</span></div>
-    <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div id="mx-${d.k}"></div></div>`).join('')}</div>
-    <p class="note mixnote">${note}</p>`;
+    <div class="grid3 mixgrid">${dims.map(d=>`<div><div class="mxt">${d.title}</div><div id="mx-${d.k}"></div></div>`).join('')}</div>`;
   return {html, dims, scale};
 }
 // 직전 N일(이번 변동은 빼고) 의 자료별 증가분을 축·항목별로 모은다 — 막대의 «하루 평균» 눈금
@@ -1106,8 +1092,7 @@ function renderDelta(A){
     const sgn=(v,f)=>v>0?'+'+f(v):v<0?'−'+f(-v):'—';
     const cls=v=>v>0?'up':v<0?'dn':'zero';
     const open=groups.length<=3;
-    html+=`<p class="desc">시리즈별로 묶었습니다 — 행을 클릭하면 상품별 변동이 펼쳐집니다. 묶음 행의 «상품» 칸은 변동이 있는 상품 수와 자료 유형별 개수입니다.</p>
-      <div class="tblwrap"><table class="dg">
+    html+=`<div class="tblwrap"><table class="dg">
       <thead><tr><th>시리즈 / 자료</th><th>상품</th><th class="num">매출 증가</th><th class="num">구매 증가</th><th class="num">누적</th></tr></thead>
       <tbody>${groups.map((g,i)=>`
         <tr class="dg-g${open?' on':''}" data-g="${i}">
