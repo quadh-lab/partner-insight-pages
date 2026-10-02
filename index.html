@@ -103,9 +103,12 @@ button.danger{color:var(--crit)}
 .msg.err{color:var(--crit)}
 
 .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:18px 0}
-.tile{background:var(--surface); border:1px solid var(--hairline); border-radius:10px; padding:14px 16px 12px}
+/* 타일 값은 22px · 좌우 여백 14px — 가장 좁은 타일(안쪽 130px, 6열·5열일 때)에 «14,230,113원»(원은 small)이 127.6px 로 들어간다.
+   24px·16px 였을 땐 안쪽 126px 에 147px 라 21px 넘쳤다(2026-10-02 실측, 사용자 «박스를 넘는다»). 숫자가 고정폭이라 8자리 금액은 전부 같은 폭이다.
+   9자리(1억)부터는 22px 로 140px 라 다시 넘친다 — 그때 다시 볼 것. */
+.tile{background:var(--surface); border:1px solid var(--hairline); border-radius:10px; padding:14px 14px 12px}
 .tile .lb{font-size:13px; color:var(--muted); margin-bottom:2px}
-.tile .v{font-size:24px; font-weight:600; letter-spacing:-.015em; line-height:1.25; white-space:nowrap}
+.tile .v{font-size:22px; font-weight:600; letter-spacing:-.015em; line-height:1.25; white-space:nowrap}
 .tile .v small{font-size:14px; font-weight:500; color:var(--ink-2)}
 .tile .d{font-size:13px; margin-top:3px; color:var(--muted)}
 .tile .d.up{color:var(--good); font-weight:600}
@@ -482,6 +485,7 @@ function sortTxns(){ state.txns.sort((a,b)=>a.dt<b.dt?-1:1); }
 /* ================= helpers ================= */
 const $=s=>document.querySelector(s);
 const won=n=>n.toLocaleString('ko-KR')+'원';
+const wonT=n=>n.toLocaleString('ko-KR')+'<small>원</small>';   // 타일 값(.tile .v)용 — 단위는 다른 타일(개·명·건·%)처럼 작게
 function wonC(n){ return won(n); }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const md=d=>d.slice(5).replace('-','.');
@@ -962,7 +966,7 @@ function renderKpis(A){
   const dBuy=tp? tl.buyers-tp.buyers : null;
   const conv=tl.n? Math.round(tl.sold/tl.n*100) : 0;
   const kp=[
-    {lb:'누적 거래액', v:won(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`▲ ${won(dRev)} (전 스냅샷 대비)`:dRev<0?`▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:'변동 없음'), up:dRev>0, down:dRev<0},
+    {lb:'누적 거래액', v:wonT(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`▲ ${won(dRev)} (전 스냅샷 대비)`:dRev<0?`▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:'변동 없음'), up:dRev>0, down:dRev<0},
     {lb:'누적 구매 갯수', v:tl.buyers+'<small>개</small>', d: dBuy===null?'무엇이 팔렸나 (자료 수량)':(dBuy>0?`▲ ${dBuy}개`:dBuy<0?`▼ ${-dBuy}개`:'변동 없음'), up:dBuy>0, down:dBuy<0},
     {lb:'누적 구매자수 (정산)', v:A.custs.length?A.custs.length+'<small>명</small>':'—', d:A.custs.length?`선생님 ${A.custs.filter(c=>c.seg==='선생님').length}명<br>(다중 자료 구매자)`:'정산 엑셀을 올리면 표시됩니다'},
     {lb:'누적 결제 건수 (정산)', v:A.T.n?A.orders.length+'<small>건</small>':'—', d:A.T.n?`결제당 ${(A.T.n/A.orders.length).toFixed(1)}개<br>객단가 ${won(Math.round(A.T.amount/A.orders.length))}`:'지갑이 몇 번 열렸나 (주문 단위)'},
@@ -1748,10 +1752,10 @@ function renderSettle(A){
   p.innerHTML=`
     <p class="note" style="margin:0 0 2px">정산은 <b>판매 후 1~3일 뒤 확정</b>됩니다 — 방금 팔린 것은 여기 아직 없습니다 ${lagChip(A)}</p>
     <div class="kpis" style="margin:0">
-      <div class="tile"><div class="lb">누적 정산 수익</div><div class="v">${won(A.T.net)}</div><div class="d">정산액(수익) 합계 · 구매 ${A.T.n}개 / 결제 ${A.orders.length}건</div></div>
-      <div class="tile"><div class="lb">이번 달 정산 수익</div><div class="v">${won(cm?cm.net:0)}</div><div class="d">${+nowM.slice(5)}월 결제 ${cm?(cm.orders||0):0}건 · 구매 ${cm?cm.n:0}개</div></div>
-      <div class="tile"><div class="lb">정산 반영 거래액</div><div class="v">${won(A.T.amount)}</div><div class="d">${A.T.first.slice(0,10)} ~ ${A.T.last.slice(0,10)}</div></div>
-      <div class="tile"><div class="lb">누적 결제수수료</div><div class="v">${won(A.T.fee)}</div><div class="d">거래액의 ${A.T.amount?(A.T.fee/A.T.amount*100).toFixed(1):0}%</div></div>
+      <div class="tile"><div class="lb">누적 정산 수익</div><div class="v">${wonT(A.T.net)}</div><div class="d">정산액(수익) 합계 · 구매 ${A.T.n}개 / 결제 ${A.orders.length}건</div></div>
+      <div class="tile"><div class="lb">이번 달 정산 수익</div><div class="v">${wonT(cm?cm.net:0)}</div><div class="d">${+nowM.slice(5)}월 결제 ${cm?(cm.orders||0):0}건 · 구매 ${cm?cm.n:0}개</div></div>
+      <div class="tile"><div class="lb">정산 반영 거래액</div><div class="v">${wonT(A.T.amount)}</div><div class="d">${A.T.first.slice(0,10)} ~ ${A.T.last.slice(0,10)}</div></div>
+      <div class="tile"><div class="lb">누적 결제수수료</div><div class="v">${wonT(A.T.fee)}</div><div class="d">거래액의 ${A.T.amount?(A.T.fee/A.T.amount*100).toFixed(1):0}%</div></div>
     </div>
     <div class="grid2">
       <div class="card"><h2>월별 정산 수익</h2><p class="desc">정산은 월 단위 지급 — 거래일 기준 월 합계 (이번 달은 확정 전 거래가 더 붙을 수 있음)</p><div class="chart" id="chMonth"></div></div>
