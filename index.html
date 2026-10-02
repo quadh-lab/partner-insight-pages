@@ -1408,7 +1408,7 @@ function renderTime(A){
       <div class="tile"><div class="lb">고객 수</div><div class="v">${custs.length}<small>명</small></div><div class="d">정산 반영 거래 기준</div></div>
       <div class="tile"><div class="lb">선생님</div><div class="v">${teachers.length}<small>명</small></div><div class="d">매출의 ${pct(tAmt,total)}% 기여</div></div>
       <div class="tile"><div class="lb">학생(추정)</div><div class="v">${students.length}<small>명</small></div><div class="d">매출의 ${pct(sAmt,total)}% 기여</div></div>
-      <div class="tile"><div class="lb">재방문</div><div class="v">${rep.length}<small>명</small></div><div class="d">구매일이 2일 이상인 고객 — 다른 날 다시 구매한 손님</div></div>
+      <div class="tile"><div class="lb">재방문</div><div class="v">${rep.length}<small>명 · ${pct(rep.length,custs.length)}%</small></div><div class="d">구매일이 2일 이상인 고객 — 다른 날 다시 구매한 손님 · %는 전체 고객 중 비율</div></div>
       <div class="tile"><div class="lb">결제 건수</div><div class="v">${A.orders.length}<small>건</small></div><div class="d">묶음 결제 ${bundles}건 · 결제당 구매 ${(txns.length/A.orders.length).toFixed(1)}개</div></div>
     </div>
     <div class="card"><h2>학생(추정) vs 선생님 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2>
