@@ -193,6 +193,7 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .dcell .dd{font-size:11.5px; color:var(--muted)}
 .dcell .dnum{font-size:19px; font-weight:700; line-height:1.25; font-variant-numeric:tabular-nums}
 .dcell .dnum small{font-size:11px; font-weight:500; color:var(--muted); margin-left:1px}
+.dcell .damt{font-size:11.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; margin:-1px 0 3px}   /* 그날 금액 — 확정이면 정산 금액, 잠정이면 거래액 증가분 */
 .dcell .chip{font-size:10.5px; padding:0 6px}
 .cb{display:grid; grid-template-columns:auto minmax(46px,1fr) auto auto; gap:5px 7px; align-items:center; font-size:11.5px}
 .cb-l{font-weight:600; white-space:nowrap}
@@ -1078,16 +1079,17 @@ const CLOSE_OK='23:55';
 function dailySales(A, n=7){
   const S=A.snaps, out=[];
   const mark=state.txns.reduce((m,t)=>t.dt>m?t.dt:m,'');            // 정산이 들어온 끝 (원 행 기준 — 취소 행도 도착 신호)
-  const byDay=new Map(); A.txns.forEach(t=>{ const d=t.dt.slice(0,10); byDay.set(d,(byDay.get(d)||0)+1); });
+  const byDay=new Map(), byDayAmt=new Map(); A.txns.forEach(t=>{ const d=t.dt.slice(0,10); byDay.set(d,(byDay.get(d)||0)+1); byDayAmt.set(d,(byDayAmt.get(d)||0)+t.amount); });
   for(let i=S.length-1;i>=1&&out.length<n;i--){
     const cur=S[i], pre=S[i-1];
     if(daysBetween(pre.date,cur.date)!==1) break;                   // 수집이 빠진 날이 있으면 거기서 멈춘다 — 여러 날치를 하루로 보이지 않게
     const pm=itemMap(pre);
     const snap=cur.items.reduce((a,it)=>{ const d=it.buyers-((pm.get(it.id)||{}).buyers||0); return a+(d>0?d:0); },0);
+    const snapAmt=cur.items.reduce((a,it)=>{ const d=it.rev-((pm.get(it.id)||{}).rev||0); return a+(d>0?d:0); },0);   // 금액도 같은 방식 (2026-10-04 사용자 «금액도 밑에 써줘»)
     const settled=!!mark && mark.slice(0,10)>cur.date;
     const hm=s=>s&&s.at?s.at.slice(11,16):null;
-    out.push({date:cur.date, snap, settled, settle:byDay.get(cur.date)||0,
-      value:settled?(byDay.get(cur.date)||0):snap, closeAt:hm(cur), openAt:hm(pre)});
+    out.push({date:cur.date, snap, snapAmt, settled, settle:byDay.get(cur.date)||0, settleAmt:byDayAmt.get(cur.date)||0,
+      value:settled?(byDay.get(cur.date)||0):snap, amount:settled?(byDayAmt.get(cur.date)||0):snapAmt, closeAt:hm(cur), openAt:hm(pre)});
   }
   return {days:out.reverse(), mark};
 }
@@ -1103,7 +1105,7 @@ function dailyStripHTML(D){
         :late?`<span class="chip warn">잠정 · 마감 ${d.closeAt}</span>`
         :`<span class="chip">잠정</span>`;
       return `<div class="dcell${isToday?' today':''}" data-i="${i}"><div class="dd">${md(d.date)} (${DOW[new Date(d.date).getDay()]})</div>
-        <div class="dnum">${d.value}<small>개</small></div>${chip}</div>`;
+        <div class="dnum">${d.value}<small>개</small></div><div class="damt">${won(d.amount)}</div>${chip}</div>`;
     }).join('')}</div>`;
 }
 function dailyStripTips(p, D){
@@ -1113,8 +1115,8 @@ function dailyStripTips(p, D){
     const diff=d.snap-d.settle;
     attachTip(c, `<div class="t1">${d.date}</div><div class="t2">`+
       (d.settled
-        ? `정산 확정 <b>${d.settle}개</b> (00:00~24:00, 결제 후 취소 짝은 뺌)<br>수집 차이로는 ${d.snap}개${diff?` <span class="zero">(${diff>0?'+':''}${diff} — 컷오프·취소 차이)</span>`:''}`
-        : `수집 차이 <b>${d.snap}개</b> <span class="zero">(${span})</span><br>`+
+        ? `정산 확정 <b>${d.settle}개 · ${won(d.settleAmt)}</b> (00:00~24:00, 결제 후 취소 짝은 뺌)<br>수집 차이로는 ${d.snap}개 · ${won(d.snapAmt)}${diff?` <span class="zero">(${diff>0?'+':''}${diff} — 컷오프·취소 차이)</span>`:''}`
+        : `수집 차이 <b>${d.snap}개 · ${won(d.snapAmt)}</b> <span class="zero">(${span})</span><br>`+
           (d.closeAt&&d.closeAt<CLOSE_OK&&d.date!==todaySeoul()?`마지막 수집이 ${d.closeAt} 이라 그 뒤 판매는 다음 날로 잡혔습니다<br>`:'')+
           `정산은 ${D.mark?D.mark.slice(5,16).replace('-','.')+' 까지':'아직 없음'} 들어왔습니다 — 다음 날 정산이 들어오면 확정으로 바뀝니다`)+
       `</div>`);
