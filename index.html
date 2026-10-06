@@ -110,6 +110,7 @@ button.danger{color:var(--crit)}
 .tile .lb{font-size:13px; color:var(--muted); margin-bottom:2px}
 .tile .v{font-size:22px; font-weight:600; letter-spacing:-.015em; line-height:1.25; white-space:nowrap}
 .tile .v small{font-size:14px; font-weight:500; color:var(--ink-2)}
+.tile .v .vsep{color:var(--muted); font-weight:400; margin:0 1px}   /* 두 값을 나란히 적는 타일(재방문 «129명 · 18%») — 둘 다 큰 글자, 가운뎃점만 옅게 (2026-10-06 사용자 «% 를 충분히 크게») */
 .tile .d{font-size:13px; margin-top:3px; color:var(--muted)}
 .tile .d.up{color:var(--good); font-weight:600}
 
@@ -304,6 +305,7 @@ input[type=password], input[type=text]{
 
   <div class="tabs" role="tablist" id="tabs">
     <button class="tab" role="tab" data-p="delta">오늘의 변동</button>
+    <button class="tab" role="tab" data-p="sig">시그니처</button>
     <button class="tab" role="tab" data-p="trend">추세·모멘텀</button>
     <button class="tab" role="tab" data-p="time">타이밍·고객</button>
     <button class="tab" role="tab" data-p="rank">랭킹·공략지점</button>
@@ -313,6 +315,7 @@ input[type=password], input[type=text]{
   </div>
 
   <section class="panel" id="p-delta"></section>
+  <section class="panel" id="p-sig"></section>
   <section class="panel" id="p-trend"></section>
   <section class="panel" id="p-time"></section>
   <section class="panel" id="p-rank"></section>
@@ -378,9 +381,11 @@ function classify(name){
   if(!grade) grade='기타';
   const pub=(name.match(/([A-Za-z가-힣]+\([A-Za-z가-힣]+\))/)||[])[1]||'기타';
   // 자료 유형 4종: 분석자료(서버 제목은 '4단 분석자료') · 워크북(중학은 '본문 워크북') · 변형문제 · 파이널(2026-09-20 추가 — 없으면 117권이 «기타»로 떨어졌다)
+  // 시그니처 상품(킬러변형)은 유형으로는 변형문제에 합치고 sig 로만 구분한다(2026-10-06 사용자 «킬러변형은 변형문제 분류로») — 전엔 «기타»로 떨어졌다.
+  const sig=sigOf(name);
   let type='기타';
   if(name.includes('분석자료')) type='분석자료';
-  else if(name.includes('변형문제')) type='변형문제';
+  else if(name.includes('변형문제')||sig==='킬러변형') type='변형문제';
   else if(name.includes('파이널')) type='파이널';
   else if(name.includes('본문 워크북')) type='본문 워크북';
   else if(name.includes('워크북')) type='워크북';
@@ -404,10 +409,14 @@ function classify(name){
   const cut=course.search(/[A-Za-z가-힣]+\(/);
   if(cut>0) course=course.slice(0,cut);
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
-  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널)/g,'').replace(/\(([^)]{2,})\)/g,'')
+  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널|킬러변형)/g,'').replace(/\(([^)]{2,})\)/g,'')   // 킬러변형도 유형 낱말처럼 떼어 «고2 2026 9월» 형제들과 같은 시리즈로 묶는다
     .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
-  return {grade,pub,type,teacher,chapter,chUnit,chLabel,chCode,course,category};
+  return {grade,pub,type,sig,teacher,chapter,chUnit,chLabel,chCode,course,category};
 }
+// 시그니처 상품 — 유형(type)은 일반 유형에 합치고(킬러변형 → 변형문제) sig 로만 표시해 «시그니처» 탭에서 따로 본다(2026-10-06).
+// 새 시그니처가 생기면 여기에 한 줄 더하고 classify() 의 유형 합치기에 짝을 넣는다.
+const SIGNATURES=[{key:'킬러변형', short:'킬', desc:'모의고사 고난도 지문(20~40번)을 유형별로 변형한 문제집 — 회차·학년마다 1권'}];
+function sigOf(name){ const s=SIGNATURES.find(s=>name.includes(s.key)); return s?s.key:''; }
 // 빠바 단원 순번: 같은 시리즈 안에서 P코드 → MT → 고난도 → 실전N회 순으로 정렬해 1부터 매긴다(현황판 순번과 같은 순서).
 function bbbOrdinals(items){
   const bySeries=new Map();
@@ -989,7 +998,7 @@ const MIX_TYPE=t=>t==='본문 워크북'?'워크북':(t||'기타');   // 중학 
 // 순서 = 화면 왼쪽부터. «학년»(고등/중등)은 거의 매일 고등 100% 라 맨 오른쪽에 둔다(2026-09-22 사용자).
 // sub: 툴팁에 한 단계 더 쪼갠 내역을 붙인다(학년 → 고1·고2·학년 무관, 유형 → 원래 표기, 구분 → 출판사·교재)
 const MIX_DIMS=[
-  {k:'type', title:'자료 유형', of:it=>MIX_TYPE(it.type), sub:it=>it.type,
+  {k:'type', title:'자료 유형', of:it=>MIX_TYPE(it.type), sub:it=>it.sig||it.type,   // 시그니처(킬러변형)는 변형문제에 합치되 툴팁 내역엔 제 이름으로
    order:[['분석자료','var(--s5)'],['워크북','var(--s1)'],['변형문제','var(--s3)'],['파이널','var(--s4)'],['기타','var(--baseline)']]},
   {k:'cat', title:'구분', of:it=>it.category, sub:it=>it.pub!=='기타'?it.pub:it.course,
    order:[['교과서','var(--s1)'],['수능/모의고사','var(--s2)'],['부교재','var(--s3)']]},
@@ -1177,7 +1186,7 @@ function renderDelta(A){
         </tr>${g.rows.map(d=>`
         <tr class="dg-i" data-g="${i}"${open?'':' hidden'}>
           <td><div class="nm">${esc(shortName(d.it))} ${d.isNew?'<span class="chip acc">신규 등록</span>':''} ${d.statusChanged?`<span class="chip warn">상태: ${esc(d.statusChanged)} → ${esc(d.it.status)}</span>`:''}</div>
-              <div class="sub">${esc(d.it.grade)} · ${esc(d.it.pub)} · ${esc(d.it.type)}${d.it.cancels?` · <span class="chip warn">취소 ${d.it.cancels}건 상쇄</span>`:''}</div></td>
+              <div class="sub">${esc(d.it.grade)} · ${esc(d.it.pub)} · ${esc(d.it.type)}${d.it.sig?` · <span class="chip acc">시그니처 · ${esc(d.it.sig)}</span>`:''}${d.it.cancels?` · <span class="chip warn">취소 ${d.it.cancels}건 상쇄</span>`:''}</div></td>
           <td><div class="sub">${esc(d.it.type)}${d.it.chapter?` · ${d.it.chLabel||d.it.chapter+d.it.chUnit}`:''}</div></td>
           <td class="num ${cls(d.dRev)}">${sgn(d.dRev,won)}</td>
           <td class="num ${cls(d.dBuy)}">${sgn(d.dBuy,v=>v+'개')}</td>
@@ -1211,6 +1220,152 @@ function renderDelta(A){
     all.addEventListener('click',()=>{ const gs=[...tbl.querySelectorAll('tr.dg-g')]; const on=!gs.every(g=>g.classList.contains('on'));
       gs.forEach(g=>setG(g.dataset.g,on)); all.textContent=on?'모두 접기':'모두 펼치기'; });
   }
+}
+/* ================= 시그니처 탭 =================
+   시그니처 상품(SIGNATURES — 지금은 킬러변형)의 판매를 따로 본다. 유형 집계에서는 변형문제에 섞여 있으므로
+   이 탭이 유일한 전용 화면이다(2026-10-06 사용자 «시그니처 상품이니까 판매 관련 정보를 따로 볼 수 있는 곳»).
+   실시간(스냅샷)·정산(txns) 두 소스를 다른 탭과 같은 규칙으로 쓴다 — 하루 판매는 변동 탭 «하루 판매»(잠정→확정)와 같은 계산. */
+const MOM_CHIP=t=>({'가속':'<span class="chip good">▲ 가속</span>','신규':'<span class="chip acc">신규 판매</span>','재개':'<span class="chip acc">판매 재개</span>','꾸준':'<span class="chip">꾸준</span>','판매중':'<span class="chip acc">판매중</span>','정체':'<span class="chip warn">정체</span>','미판매':'<span class="chip">미판매</span>'}[t]||'<span class="chip">—</span>');
+const kstDate=iso=>{ const d=new Date(iso); if(isNaN(d)) return null; d.setUTCHours(d.getUTCHours()+9); return d.toISOString().slice(0,10); };
+function sigLaunch(A, items){
+  // 등록일 = 서버 createdAt(UTC → KST 날짜). 없으면 그 상품이 처음 보인 스냅샷 날짜
+  const c=items.map(i=>i.createdAt&&kstDate(i.createdAt)).filter(Boolean).sort()[0];
+  if(c) return c;
+  const ids=new Set(items.map(i=>i.id));
+  const s=A.snaps.find(sn=>sn.items.some(i=>ids.has(i.id)));
+  return s?s.date:A.latest.date;
+}
+function sigDaily(A, items, launch){
+  // 등록일부터 최신 스냅샷 날짜까지 하루 단위. 확정 = 그날 정산 행(취소 짝 뺀 것) · 잠정 = 그날 스냅샷 − 직전 스냅샷(는 자료만 합)
+  const ids=new Set(items.map(i=>i.id)), names=new Set(items.map(i=>i.name));
+  const tx=A.txns.filter(t=>names.has(t.name));
+  const mark=state.txns.reduce((m,t)=>t.dt>m?t.dt:m,'');
+  const byDay=new Map(), byAmt=new Map();
+  tx.forEach(t=>{ const d=t.dt.slice(0,10); byDay.set(d,(byDay.get(d)||0)+1); byAmt.set(d,(byAmt.get(d)||0)+t.amount); });
+  const snapOf=new Map(A.snaps.map(s=>[s.date,s]));
+  const out=[];
+  for(let d=new Date(launch); d.toISOString().slice(0,10)<=A.latest.date; d.setDate(d.getDate()+1)){
+    const k=d.toISOString().slice(0,10);
+    const cur=snapOf.get(k), pre=[...A.snaps].reverse().find(s=>s.date<k);
+    let snap=null, snapAmt=null;
+    if(cur){ const pm=pre?itemMap(pre):new Map(); snap=0; snapAmt=0;
+      cur.items.filter(i=>ids.has(i.id)).forEach(it=>{ const p=pm.get(it.id)||{buyers:0,rev:0}; const db=it.buyers-p.buyers, dr=it.rev-p.rev; if(db>0) snap+=db; if(dr>0) snapAmt+=dr; }); }
+    const settled=!!mark && mark.slice(0,10)>k;
+    out.push({date:k, snap, snapAmt, settled, settle:byDay.get(k)||0, settleAmt:byAmt.get(k)||0,
+      value:settled?(byDay.get(k)||0):(snap||0), amount:settled?(byAmt.get(k)||0):(snapAmt||0)});
+  }
+  return out;
+}
+function renderSig(A){
+  const p=$('#p-sig');
+  const draw=[];
+  let html='';
+  const sgn=(v,f)=>v>0?'▲ '+f(v):v<0?'▼ '+f(-v):'변동 없음';
+  const cls=v=>v>0?'up':v<0?'down':'';
+  const custMap=new Map(A.custs.map(c=>[c.cust,c]));
+  SIGNATURES.forEach((S,si)=>{
+    const items=A.latest.items.filter(i=>i.sig===S.key);
+    if(!items.length){
+      html+=`<div class="card"><h2>${esc(S.key)} <span class="chip acc">시그니처</span></h2>
+        <div class="empty">아직 등록된 ${esc(S.key)} 상품이 없습니다 — 제목에 «${esc(S.key)}» 이 든 자료가 수집되면 이 탭에 자동으로 잡힙니다.</div></div>`;
+      return;
+    }
+    const launch=sigLaunch(A,items);
+    const days=daysBetween(launch, A.latest.date)+1;   // 등록일 포함
+    const pm=A.prev?itemMap(A.prev):new Map();
+    const rev=items.reduce((a,i)=>a+i.rev,0), buyers=items.reduce((a,i)=>a+i.buyers,0);
+    const dRev=A.prev?items.reduce((a,i)=>a+i.rev-((pm.get(i.id)||{}).rev||0),0):null;
+    const dBuy=A.prev?items.reduce((a,i)=>a+i.buyers-((pm.get(i.id)||{}).buyers||0),0):null;
+    const names=new Set(items.map(i=>i.name)), nameMap=new Map(items.map(i=>[i.name,i]));
+    const tx=A.txns.filter(t=>names.has(t.name));
+    const optOf=t=>{ const it=nameMap.get(t.name); return (it&&it.own===t.price)?'own':(it&&it.rent===t.price)?'rent':(t.price>=5000?'own':'rent'); };
+    const own=tx.filter(t=>optOf(t)==='own').length, rent=tx.length-own;
+    const net=tx.reduce((a,t)=>a+t.net,0), amount=tx.reduce((a,t)=>a+t.amount,0);
+    const custs=[...new Set(tx.map(t=>t.cust))];
+    const teachers=custs.filter(c=>A.segOf.get(c)==='선생님').length;
+    const since=A.txns.filter(t=>t.dt.slice(0,10)>=launch);   // 등록 후 전체 정산 구매 — 비중의 분모
+    const share=since.length?Math.round(tx.length/since.length*100):null;
+    const shareAmt=since.length?Math.round(amount/Math.max(1,since.reduce((a,t)=>a+t.amount,0))*100):null;
+    // 상품별
+    const rows=items.map(it=>{
+      const pv=pm.get(it.id)||{rev:0,buyers:0};
+      const m=A.momentum.find(x=>x.it.id===it.id)||{};
+      const t=tx.filter(x=>x.name===it.name);
+      const o=t.filter(x=>optOf(x)==='own').length;
+      return {it, dRev:A.prev?it.rev-pv.rev:0, dBuy:A.prev?it.buyers-pv.buyers:0, mom:m, n:t.length, own:o, rent:t.length-o, net:t.reduce((a,x)=>a+x.net,0)};
+    }).sort((a,b)=>b.it.rev-a.it.rev||a.it.name.localeCompare(b.it.name));
+    // 같은 회차(시리즈) 상품과 비교 — 등록일 직전 스냅샷을 기준으로 그 뒤 는 구매 갯수
+    const base=[...A.snaps].reverse().find(s=>s.date<launch)||A.snaps[0];
+    const bm=base?itemMap(base):new Map();
+    const cmp=items.map(it=>{
+      const key=seriesKey(it);
+      const row=i=>({it:i, since:i.buyers-((bm.get(i.id)||{}).buyers||0), sinceRev:i.rev-((bm.get(i.id)||{}).rev||0)});
+      const sib=A.latest.items.filter(i=>seriesKey(i)===key&&i.id!==it.id).map(row).sort((a,b)=>b.since-a.since||b.it.rev-a.it.rev);
+      return {key, rows:[row(it),...sib]};
+    });
+    // 함께 산 자료 — 구매자가 언제든 같이 산 다른 자료(교차 판매 단서)
+    const co=new Map(); let coCust=0;
+    custs.forEach(c=>{ const g=custMap.get(c); if(!g) return;
+      const others=[...new Set(g.buys.filter(b=>!names.has(b.name)).map(b=>b.name))];
+      if(others.length) coCust++; others.forEach(n=>co.set(n,(co.get(n)||0)+1)); });
+    const coTop=[...co.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const recent=tx.slice(-10).reverse();
+    const D=sigDaily(A,items,launch);
+    const lag=lagChip(A);
+    html+=`<div class="card">
+      <h2>${esc(S.key)} <span class="chip acc">시그니처</span> <span class="zero" style="font-weight:400">· 상품 ${items.length}개 · 등록 ${launch} (${days}일째)</span></h2>
+      <p class="desc">${esc(S.desc)} — 유형 집계에서는 변형문제에 들어 있고, 판매는 여기서 따로 봅니다. ${lag}</p>
+      <div class="kpis" style="margin:0 0 14px">
+        <div class="tile"><div class="lb">누적 거래액</div><div class="v">${wonT(rev)}</div><div class="d ${dRev===null?'':cls(dRev)}">${dRev===null?'다음 수집부터 증감 표시':sgn(dRev,won)+' (전 스냅샷 대비)'}</div></div>
+        <div class="tile"><div class="lb">누적 구매 갯수</div><div class="v">${buyers}<small>개</small></div><div class="d ${dBuy===null?'':cls(dBuy)}">${dBuy===null?'실시간 수집 기준':sgn(dBuy,v=>v+'개')+' (전 스냅샷 대비)'}</div></div>
+        <div class="tile"><div class="lb">정산 확정 구매</div><div class="v">${tx.length}<small>개</small></div><div class="d">${tx.length?`정산액 ${won(net)} · 결제 ${won(amount)}`:'정산 내역에 아직 없음'}</div></div>
+        <div class="tile"><div class="lb">대여 / 소장</div><div class="v">${rent}<small>대여</small> <span class="vsep">·</span> ${own}<small>소장</small></div><div class="d">정산 기준 · 소장 비율 ${tx.length?Math.round(own/tx.length*100):0}%</div></div>
+        <div class="tile"><div class="lb">구매자</div><div class="v">${custs.length}<small>명</small></div><div class="d">${custs.length?`선생님 ${teachers}명 · 학생 ${custs.length-teachers}명 · 다른 자료도 산 사람 ${coCust}명`:'정산 내역 기준'}</div></div>
+        <div class="tile"><div class="lb">등록 후 전체 판매 중</div><div class="v">${share===null?'—':share+'<small>%</small>'}</div><div class="d">${share===null?'등록 후 정산이 들어오면 표시':`등록 후 정산 구매 ${since.length}개 중 ${tx.length}개 · 금액 비중 ${shareAmt}%`}</div></div>
+      </div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>상품</th><th>추세</th><th class="num">최근 7일 / 이전 7일</th><th class="num">전 스냅샷 대비</th><th class="num">누적 구매</th><th class="num">누적 거래액</th><th class="num">정산 구매</th><th class="num">정산액</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr>
+          <td><div class="nm" style="white-space:nowrap">${esc(shortName(r.it))} ${/판매중단$/.test(r.it.status)?`<span class="chip warn">${esc(r.it.status)}</span>`:`<span class="chip good">${esc(r.it.status)}</span>`}</div>
+              <div class="sub">${esc(r.it.grade)} · ${esc(r.it.category)} · ${esc(r.it.type)} · 대여 ${won(r.it.rent)} / 소장 ${won(r.it.own)}</div></td>
+          <td>${MOM_CHIP(r.mom.tag)}</td>
+          <td class="num ${r.mom.r7>0?'up':'zero'}">${r.mom.r7>0?'+'+won(r.mom.r7):'—'}<div class="sub">${r.mom.r14p>0?'+'+won(r.mom.r14p):'—'}</div></td>
+          <td class="num ${r.dBuy>0?'up':r.dBuy<0?'dn':'zero'}">${r.dBuy>0?'+'+r.dBuy+'개':r.dBuy<0?'−'+(-r.dBuy)+'개':'—'}<div class="sub">${r.dRev>0?'+'+won(r.dRev):r.dRev<0?'−'+won(-r.dRev):''}</div></td>
+          <td class="num">${r.it.buyers}개</td>
+          <td class="num">${won(r.it.rev)}</td>
+          <td class="num">${r.n}개<div class="sub">대여 ${r.rent} · 소장 ${r.own}</div></td>
+          <td class="num">${won(r.net)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>하루 판매 — 등록일부터</h2><p class="desc">확정 = 정산 기준(취소 짝 뺌) · 잠정 = 스냅샷 차이 · 변동 탭 «하루 판매»와 같은 규칙</p><div class="chart" id="sg-daily-${si}"></div></div>
+      <div class="card"><h2>같은 회차 상품과 비교</h2><p class="desc">${launch} 이후 늘어난 구매 갯수 — ${esc(S.key)}이 나온 뒤 같은 회차의 다른 자료가 얼마나 팔렸나 (실시간 기준)</p>
+        ${cmp.map(c=>`<div class="mxt" style="margin-top:8px">${esc(c.key)}</div><div class="tblwrap"><table>
+          <thead><tr><th>상품</th><th>유형</th><th class="num">등록 후 구매</th><th class="num">등록 후 거래액</th><th class="num">누적 구매</th></tr></thead>
+          <tbody>${c.rows.map(r=>`<tr${r.it.sig?' style="font-weight:600"':''}>
+            <td class="nm">${esc(shortName(r.it))}</td><td class="zero">${esc(r.it.sig||r.it.type)}</td>
+            <td class="num">${r.since}개</td><td class="num">${won(r.sinceRev)}</td><td class="num">${r.it.buyers}개</td></tr>`).join('')}</tbody></table></div>`).join('')}
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>함께 산 자료</h2><p class="desc">${esc(S.key)} 구매자 ${custs.length}명이 (언제든) 함께 산 다른 자료 — 교차 판매 단서. 숫자 = 사람 수</p>
+        ${coTop.length?`<div class="chart" id="sg-co-${si}"></div>`:'<div class="empty">아직 다른 자료를 함께 산 구매자가 없습니다.</div>'}</div>
+      <div class="card"><h2>최근 거래 — 정산</h2><p class="desc">정산 내역의 ${esc(S.key)} 구매 최근 ${recent.length}건</p>
+        ${recent.length?`<div class="tblwrap"><table><thead><tr><th>일시</th><th>상품</th><th>구매</th><th class="num">결제</th><th>고객</th></tr></thead>
+          <tbody>${recent.map(t=>`<tr><td class="zero">${esc(t.dt.slice(5,16).replace('-','.'))}</td><td class="nm">${esc(shortName(t.name))}</td>
+            <td>${optOf(t)==='own'?'소장':'대여'}${t.price>t.amount?` <span class="chip">할인 ${won(t.price-t.amount)}</span>`:''}</td>
+            <td class="num">${won(t.amount)}</td><td class="zero">${esc(t.cust)} · ${esc(A.segOf.get(t.cust)||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">정산 내역에 아직 없습니다.</div>'}</div>
+    </div>`;
+    draw.push(()=>{
+      colChart($('#sg-daily-'+si), D.map(d=>({x:md(d.date), value:d.value,
+        tipHtml:`<div class="t1">${d.date} (${DOW[new Date(d.date).getUTCDay()]}) ${d.settled?'<span class="chip good">확정</span>':'<span class="chip">잠정</span>'}</div><div class="t2">`+
+          (d.settled?`정산 ${d.settle}개 · ${won(d.settleAmt)}${d.snap!==null?`<br>수집 차이로는 ${d.snap}개 · ${won(d.snapAmt)}`:''}`
+                    :(d.snap===null?'이날 스냅샷이 없습니다':`수집 차이 ${d.snap}개 · ${won(d.snapAmt)}`))+`</div>`})), {h:170, emptyMsg:'등록 후 스냅샷이 쌓이면 표시됩니다.'});
+      if(coTop.length) hbar($('#sg-co-'+si), coTop.map(([n,v])=>({label:shortName(n), value:v, vlabel:v+'명',
+        tipHtml:`<div class="t1">${esc(shortName(n))}</div><div class="t2">${esc(S.key)} 구매자 중 ${v}명이 함께 구매</div>`})), {valW:60});
+    });
+  });
+  p.innerHTML=html;
+  draw.forEach(f=>f());
 }
 function buildInsights(A){
   // 각 인사이트에 그룹을 붙인다 — change(이번에 달라진 것) / act(먼저 손댈 곳) / struct(구조적 사실)
@@ -1414,7 +1569,7 @@ function renderTime(A){
       <div class="tile"><div class="lb">고객 수</div><div class="v">${custs.length}<small>명</small></div><div class="d">정산 반영 거래 기준</div></div>
       <div class="tile"><div class="lb">선생님</div><div class="v">${teachers.length}<small>명</small></div><div class="d">매출의 ${pct(tAmt,total)}% 기여</div></div>
       <div class="tile"><div class="lb">학생(추정)</div><div class="v">${students.length}<small>명</small></div><div class="d">매출의 ${pct(sAmt,total)}% 기여</div></div>
-      <div class="tile"><div class="lb">재방문</div><div class="v">${rep.length}<small>명 · ${pct(rep.length,custs.length)}%</small></div><div class="d">구매일이 2일 이상인 고객 — 다른 날 다시 구매한 손님 · %는 전체 고객 중 비율</div></div>
+      <div class="tile"><div class="lb">재방문</div><div class="v">${rep.length}<small>명</small> <span class="vsep">·</span> ${pct(rep.length,custs.length)}<small>%</small></div><div class="d">구매일이 2일 이상인 고객 — 다른 날 다시 구매한 손님 · %는 전체 고객 중 비율</div></div>
       <div class="tile"><div class="lb">결제 건수</div><div class="v">${A.orders.length}<small>건</small></div><div class="d">묶음 결제 ${bundles}건 · 결제당 구매 ${(txns.length/A.orders.length).toFixed(1)}개</div></div>
     </div>
     <div class="card"><h2>학생(추정) vs 선생님 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2>
@@ -1491,7 +1646,7 @@ function renderRank(A){
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
       <p class="desc">칸마다 자료 유형 3종을 분·워·변 순으로 찍습니다. 파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
       <div class="tblwrap" id="mxWrap"></div>
-      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
+      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 킬=킬러변형(시그니처, 변형문제 칸과 별도) · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1544,9 +1699,10 @@ function renderRank(A){
       // 한 칸에 분·워·변·파 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다.
       mx+=`<td colspan="${chAll}" style="text-align:left">`;
       fams.forEach(([tp,sh])=>{
-        const it=sr.items.find(i=>i.type===tp);
+        const it=sr.items.find(i=>i.type===tp&&!i.sig);   // 시그니처(킬러변형)는 변형문제 칸을 대신 채우지 않고 뒤에 따로 찍는다
         mx+=it?badge(it,sh):missBadge(sr,tp,sh,'');
       });
+      sr.items.filter(i=>i.sig).forEach(it=>{ mx+=badge(it,(SIGNATURES.find(s=>s.key===it.sig)||{short:'시'}).short); });
       mx+=`</td>`;
     }else{
       for(let c=1;c<=chAll;c++){
@@ -1612,7 +1768,7 @@ function buildTargets(A){
     // 빈칸이 같은 유형끼리 한 줄로 묶는다 — 1·2·6·7강이 3종 다 없으면 세 줄이 아니라 한 줄
     const gaps=new Map(); // 빈칸 서명 → {types, have, soldSame}
     seriesFams(sr).forEach(([tp])=>{
-      const mine=sr.items.filter(i=>i.type===tp);
+      const mine=sr.items.filter(i=>i.type===tp&&!i.sig);   // 시그니처는 라인 빈칸 판정에서 뺀다 — 킬러변형이 있다고 변형문제 라인이 찬 게 아니다
       const have=new Set(mine.map(i=>+i.chapter||0));
       const soldSame=mine.filter(i=>i.rev>0).length;
       const missing=[];
@@ -2003,7 +2159,7 @@ function renderAll(){
     `<b>실시간 수집</b> ${A.latest.date} · 스냅샷 ${A.snaps.length}개 · 자료 ${A.tl.n}${A.latest.declared?`/${A.latest.declared}`:''}개 · <b>정산</b> ~${A.T.last?A.T.last.slice(0,10):'-'} 확정분 · 구매 ${A.txns.length}개`:
     `데이터를 넣으면 리포트가 시작됩니다`;
   $('#txnCount').textContent=A.txns.length?`저장된 구매 내역 ${A.txns.length}개 (~${A.T.last?A.T.last.slice(0,10):''})`:'';
-  renderKpis(A); renderDelta(A); renderTrend(A); renderTime(A); renderRank(A); renderSettle(A); renderTail(A); renderData(A);
+  renderKpis(A); renderDelta(A); renderSig(A); renderTrend(A); renderTime(A); renderRank(A); renderSettle(A); renderTail(A); renderData(A);
 }
 
 /* ================= 팀 공유 암호화 (AES-GCM + PBKDF2) ================= */
