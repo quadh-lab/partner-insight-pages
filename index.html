@@ -1085,6 +1085,14 @@ function countBars(container, rows, scale){
    확정: 정산 행은 분 단위 시각이 있어 정확히 자를 수 있다. 정산은 1~2일 늦게 들어오므로
          그날보다 뒤 날짜의 정산 행이 하나라도 들어왔으면 그날은 다 들어온 것으로 보고 정산 갯수(취소 짝 뺀 것)로 바꾼다. */
 const CLOSE_OK='23:55';
+/* 마지막 확인 시각 (2026-10-11 사용자 «변동 없어도 마지막 확인 시각은 올라가게»)
+   판매가 그대로면 data.enc.json 은 안 올라가므로 스냅샷의 at 은 «마지막으로 바뀐 시각»에 멈춘다.
+   수집기가 매 회차 올리는 checked.json({at}) 이 같은 날짜이고 더 늦으면 그 시각을 쓴다 — 누적값은 그 시각에도 같았다는 뜻. */
+let CHECKED_AT=null;
+function checkedHM(date,closeAt){
+  const c=CHECKED_AT&&CHECKED_AT.slice(0,10)===date?CHECKED_AT.slice(11,16):null;
+  return c&&(!closeAt||c>closeAt)?c:closeAt;
+}
 function dailySales(A, n=7){
   const S=A.snaps, out=[];
   const mark=state.txns.reduce((m,t)=>t.dt>m?t.dt:m,'');            // 정산이 들어온 끝 (원 행 기준 — 취소 행도 도착 신호)
@@ -1110,7 +1118,7 @@ function dailyStripHTML(D){
       const isToday=d.date===today;
       const late=!d.settled&&!isToday&&!!d.closeAt&&d.closeAt<CLOSE_OK;   // 시각 기록이 없는 옛 스냅샷(2026-09-26 이전)은 경고하지 않는다
       const chip=d.settled?'<span class="chip good">확정</span>'
-        :isToday?`<span class="chip acc">진행 중${d.closeAt?' · '+d.closeAt:''}</span>`
+        :isToday?`<span class="chip acc">진행 중${(()=>{ const t=checkedHM(d.date,d.closeAt); return t?' · '+t:''; })()}</span>`
         :late?`<span class="chip warn">잠정 · 마감 ${d.closeAt}</span>`
         :`<span class="chip">잠정</span>`;
       return `<div class="dcell${isToday?' today':''}" data-i="${i}"><div class="dd">${md(d.date)} (${DOW[new Date(d.date).getDay()]})</div>
@@ -2311,6 +2319,7 @@ $('#xlsFile').addEventListener('change',ev=>{
   if(blob&&subtleOk){
     teamMode=true;
     await showGate(blob); // 복호화 성공 시 state 교체
+    try{ const c=await fetch('checked.json',{cache:'no-store'}); if(c&&c.ok){ const j=await c.json(); if(j&&/^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(j.at)) CHECKED_AT=j.at; } }catch(e){}
   }
   selectTab(state.snaps.length>1?'delta':'trend');
   renderAll();
