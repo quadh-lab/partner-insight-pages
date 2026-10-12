@@ -506,6 +506,9 @@ const $=s=>document.querySelector(s);
 const won=n=>n.toLocaleString('ko-KR')+'원';
 const wonT=n=>n.toLocaleString('ko-KR')+'<small>원</small>';   // 타일 값(.tile .v)용 — 단위는 다른 타일(개·명·건·%)처럼 작게
 function wonC(n){ return won(n); }
+// 요일·시간대 패턴에서 빼는 달 — 2026-08 은 판매 시작 달이라(17일간 55개) 하루 평균·피크를 왜곡한다
+const PATTERN_SKIP_MONTH='2026-08', PATTERN_SKIP_LABEL='26년 8월 제외';
+const patternTxns=txns=>txns.filter(t=>t.dt.slice(0,7)!==PATTERN_SKIP_MONTH);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const md=d=>d.slice(5).replace('-','.');
 const DOW=['일','월','화','수','목','금','토'];
@@ -1397,14 +1400,15 @@ function buildInsights(A){
   if(txns.length){
     // 요일/시간 피크
     const dow=Array(7).fill(0), hour={};
-    txns.forEach(t=>{
+    const ptx=patternTxns(txns);
+    ptx.forEach(t=>{
       const d=new Date(t.dt.replace(' ','T'));
       dow[d.getDay()]+=t.amount;
       const h=d.getHours(); hour[h]=(hour[h]||0)+1;
     });
     const bi=dow.indexOf(Math.max(...dow));
     const bh=Object.entries(hour).sort((a,b)=>b[1]-a[1])[0];
-    add('struct',`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다${txns.length<50?` (구매 표본 ${txns.length}개, 아직 참고용)`:''}.`);
+    add('struct',`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다 (${PATTERN_SKIP_LABEL}${ptx.length<50?` · 구매 표본 ${ptx.length}개, 아직 참고용`:''}).`);
     // 재구매
     if(A.orders.length) add('struct',`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
     const revisit=A.custs.filter(c=>c.days.size>=2).length;
@@ -1548,7 +1552,8 @@ function renderTime(A){
   const binAmt=Array(8).fill(0), binCnt=Array(8).fill(0);
   const binDow=Array.from({length:8},()=>Array(7).fill(0)); // [시간대][요일] 결제 이벤트 수
   const evSeen=new Set();
-  txns.forEach(t=>{
+  const ptx=patternTxns(txns);   // 요일·시간대 차트 전용 (8월 제외)
+  ptx.forEach(t=>{
     const d=new Date(t.dt.replace(' ','T'));
     dowAmt[d.getDay()]+=t.amount; dowCnt[d.getDay()]++;
     const b=Math.floor(d.getHours()/3);
@@ -1558,8 +1563,8 @@ function renderTime(A){
   });
   // 요일별 평균: 첫 거래일~마지막 거래일 사이에 그 요일이 몇 번 있었나로 나눈다 (판매 0인 날도 분모에 포함)
   const dowDays=Array(7).fill(0);
-  if(txns.length){
-    const ds=txns.map(t=>t.dt.slice(0,10)).sort();
+  if(ptx.length){
+    const ds=ptx.map(t=>t.dt.slice(0,10)).sort();
     for(let d=new Date(ds[0]+'T00:00'), end=new Date(ds[ds.length-1]+'T00:00'); d<=end; d.setDate(d.getDate()+1)) dowDays[d.getDay()]++;
   }
   const dowAvg=dowAmt.map((v,i)=>dowDays[i]?Math.round(v/dowDays[i]):0);
@@ -1606,8 +1611,8 @@ function renderTime(A){
           <p class="note" style="margin-top:8px">최근 7일 선생님 매출 비중 <b>${pct(w1.t,w1.all)}%</b>${w0.all?` · 이전 7일 ${pct(w0.t,w0.all)}%`:''}</p></div>
       </div></div>
     <div class="grid2">
-      <div class="card"><h2>요일별 하루 평균 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">거래일 기준 · 기간 안 같은 요일 수로 나눔(판매 없는 날 포함) · 판매량은 자료 1개 = 1</p><div id="chDowP"></div></div>
-      <div class="card"><h2>시간대별 결제 건수 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">3시간 단위 · <b>결제 건수 기준</b>(묶음결제로 여러 개를 사도 결제 1건) · 요일별 색으로 쌓아 한 요일이 만든 피크인지 구분</p><div class="chart" id="chHour"></div></div>
+      <div class="card"><h2>요일별 하루 평균 <span class="chip">${PATTERN_SKIP_LABEL}</span>${ptx.length<50?`<span class="chip">구매 표본 ${ptx.length}개 · 참고용</span>`:''}</h2><p class="desc">거래일 기준 · 기간 안 같은 요일 수로 나눔(판매 없는 날 포함) · 판매량은 자료 1개 = 1</p><div id="chDowP"></div></div>
+      <div class="card"><h2>시간대별 결제 건수 <span class="chip">${PATTERN_SKIP_LABEL}</span>${ptx.length<50?`<span class="chip">구매 표본 ${ptx.length}개 · 참고용</span>`:''}</h2><p class="desc">3시간 단위 · <b>결제 건수 기준</b>(묶음결제로 여러 개를 사도 결제 1건) · 요일별 색으로 쌓아 한 요일이 만든 피크인지 구분</p><div class="chart" id="chHour"></div></div>
     </div>
     <div>
       <div class="card"><h2>고객 TOP 10</h2><p class="desc">선생님이 시리즈로 사 가는 패턴이 보이면, 그 시리즈의 다음 과 자료를 우선 제작하세요.</p>
