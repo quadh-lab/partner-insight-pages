@@ -1554,6 +1554,7 @@ function renderTime(A){
     for(let d=new Date(ds[0]+'T00:00'), end=new Date(ds[ds.length-1]+'T00:00'); d<=end; d.setDate(d.getDate()+1)) dowDays[d.getDay()]++;
   }
   const dowAvg=dowAmt.map((v,i)=>dowDays[i]?Math.round(v/dowDays[i]):0);
+  const dowAvgN=dowCnt.map((v,i)=>dowDays[i]?Math.round(v/dowDays[i]*10)/10:0);   // 하루 평균 구매 갯수(소수 1자리)
   const custs=A.custs;
   const rep=custs.filter(c=>c.days.size>=2);
   const bundleKey=new Map();
@@ -1596,9 +1597,10 @@ function renderTime(A){
           <p class="note" style="margin-top:8px">최근 7일 선생님 매출 비중 <b>${pct(w1.t,w1.all)}%</b>${w0.all?` · 이전 7일 ${pct(w0.t,w0.all)}%`:''}</p></div>
       </div></div>
     <div class="grid2">
-      <div class="card"><h2>요일별 평균 매출 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">거래일 기준 — 그 요일 하루 평균 매출 (기간 안 같은 요일 수로 나눔, 판매 없는 날 포함 · 막대 색 = 요일, 아래 시간대 차트와 같은 색)</p><div class="chart" id="chDow"></div></div>
-      <div class="card"><h2>시간대별 결제 건수 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">3시간 단위 · <b>결제 건수 기준</b>(묶음결제로 여러 개를 사도 결제 1건) · 요일별 색으로 쌓아 한 요일이 만든 피크인지 구분</p><div class="chart" id="chHour"></div></div>
+      <div class="card"><h2>요일별 평균 매출 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">거래일 기준 — 그 요일 하루 평균 매출 (기간 안 같은 요일 수로 나눔, 판매 없는 날 포함 · 막대 색 = 요일, 시간대 차트와 같은 색)</p><div class="chart" id="chDow"></div></div>
+      <div class="card"><h2>요일별 평균 판매량 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">그 요일 하루 평균 구매 갯수 (묶음결제도 자료 하나하나를 1개로 셈 · 나누는 일수는 왼쪽 차트와 같음)</p><div class="chart" id="chDowN"></div></div>
     </div>
+      <div class="card"><h2>시간대별 결제 건수 ${txns.length<50?`<span class="chip">구매 표본 ${txns.length}개 · 참고용</span>`:''}</h2><p class="desc">3시간 단위 · <b>결제 건수 기준</b>(묶음결제로 여러 개를 사도 결제 1건) · 요일별 색으로 쌓아 한 요일이 만든 피크인지 구분</p><div class="chart" id="chHour"></div></div>
     <div>
       <div class="card"><h2>고객 TOP 10</h2><p class="desc">선생님이 시리즈로 사 가는 패턴이 보이면, 그 시리즈의 다음 과 자료를 우선 제작하세요.</p>
         <div class="tblwrap"><table>
@@ -1642,6 +1644,8 @@ function renderTime(A){
   stackedColChart($('#chSegTrend'), pts, {legend:[{label:'선생님',color:SEGC['선생님']},{label:'학생(추정)',color:SEGC['학생(추정)']}]});
   hbar($('#chDow'), dowOrder.map(i=>({label:DOW[i]+'요일', value:dowAvg[i], color:DOWC[i],
     tipHtml:`<div class="t1">${DOW[i]}요일 · 하루 평균 ${won(dowAvg[i])}</div><div class="t2">${dowDays[i]}일 합계 ${won(dowAmt[i])} · 구매 ${dowCnt[i]}개</div>`})));
+  hbar($('#chDowN'), dowOrder.map(i=>({label:DOW[i]+'요일', value:dowAvgN[i], color:DOWC[i], vlabel:dowAvgN[i].toFixed(1)+'개',
+    tipHtml:`<div class="t1">${DOW[i]}요일 · 하루 평균 ${dowAvgN[i].toFixed(1)}개</div><div class="t2">${dowDays[i]}일 합계 ${dowCnt[i]}개 · ${won(dowAmt[i])}</div>`})));
   stackedColChart($('#chHour'), binDow.map((row,b)=>({x:`${b*3}시~`,
     parts:dowOrder.map(i=>({label:DOW[i]+'요일', value:row[i], color:DOWC[i],
       tipHtml:`<div class="t1">${b*3}시~${b*3+3}시 · ${DOW[i]}요일</div><div class="t2">결제 ${row[i]}건</div>`})),
