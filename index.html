@@ -784,7 +784,7 @@ function stackedColChart(container, pts, opts={}){
     container.appendChild(lg);
   }
 }
-function lineChart(container, pts){
+function lineChart(container, pts, opts={}){
   container.innerHTML='';
   if(!pts.length){ container.innerHTML='<div class="empty">표시할 데이터가 없습니다.</div>'; return; }
   const W=Math.max(320, container.clientWidth||600), H=210;
@@ -816,7 +816,7 @@ function lineChart(container, pts){
   const last=pts[n-1];
   el('circle',{cx:X(n-1),cy:Y(last.value),r:4.5,fill:'var(--s1)',stroke:'var(--surface)','stroke-width':2},svg);
   const lt=el('text',{x:X(n-1)+9,y:Y(last.value)+4,'class':'lbl-t'},svg);
-  lt.textContent=wonC(last.value);
+  lt.textContent=opts.fmt?opts.fmt(last.value):wonC(last.value);
   pts.forEach((p,i)=>{
     const x0=n===1?m.l:(i===0?m.l:(X(i-1)+X(i))/2);
     const x1=n===1?m.l+pw:(i===n-1?m.l+pw:(X(i)+X(i+1))/2);
@@ -1993,11 +1993,28 @@ function renderTail(A){
   const top5=sorted.slice(0,5).reduce((s,i)=>s+i.rev,0);
   const conc=A.tl.rev?Math.round(top5/A.tl.rev*100):0;
   const tiers=[['미판매',i=>i.buyers===0],['1개',i=>i.buyers===1],['2개',i=>i.buyers===2],['3개 이상',i=>i.buyers>=3]];
-  const regAge=i=>{ // 등록 경과일 ≈ 오늘 - (만료일-365일)
-    if(!i.expiry) return null;
-    const reg=new Date(i.expiry.replace(/\./g,'-')); reg.setDate(reg.getDate()-365);
-    return daysBetween(reg.toISOString().slice(0,10), todaySeoul());
-  };
+  // 등록일 = 서버 createdAt(KST 날짜). 만료일−365일 추정은 쓰지 않는다 — 만료일은 등록일과 따로 정해져
+  // (2026-10-16 실측: 만료−등록 330~365일 제각각, 만료일은 11개 날짜에 몰림) 최대 35일 어긋난다.
+  const regDate=i=>i.createdAt?kstDate(i.createdAt):null;
+  const regAge=i=>{ const d=regDate(i); return d?daysBetween(d, todaySeoul()):null; };
+  // 등록 자료 추이: 첫 등록일부터 최신 스냅샷 날짜까지 하루 단위 누적(지금 목록 기준 — 지운 자료는 없다)
+  const regBy=new Map();
+  items.forEach(i=>{ const d=regDate(i); if(!d) return; if(!regBy.has(d)) regBy.set(d,[]); regBy.get(d).push(i); });
+  const regPts=[];
+  const regDays=[...regBy.keys()].sort();
+  if(regDays.length){
+    const end=A.latest.date>regDays[regDays.length-1]?A.latest.date:regDays[regDays.length-1];
+    let cum=0;
+    for(let d=new Date(regDays[0]+'T00:00:00Z'); d.toISOString().slice(0,10)<=end; d.setUTCDate(d.getUTCDate()+1)){
+      const k=d.toISOString().slice(0,10), add=regBy.get(k)||[];
+      cum+=add.length;
+      const tm=new Map(); add.forEach(i=>tm.set(i.type,(tm.get(i.type)||0)+1));
+      regPts.push({x:k.slice(5).replace('-','.'), value:cum,
+        tipHtml:`<div class="t1">${k}</div><div class="t2">누적 ${cum.toLocaleString('ko-KR')}개${add.length?` · 이날 +${add.length}개`:''}</div>`
+          +[...tm.entries()].sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="t2">${esc(t)} ${n}개</div>`).join('')});
+    }
+  }
+  const noReg=items.length-[...regBy.values()].reduce((s,a)=>s+a.length,0);
   const um=new Map();
   unsold.forEach(i=>{
     const k=`${i.grade} · ${i.pub!=='기타'?i.pub:(i.category||'기타')} · ${i.type}`;
@@ -2027,10 +2044,14 @@ function renderTail(A){
       <div class="card"><h2>미판매가 몰린 카테고리</h2><p class="desc">노출·미리보기·가격을 점검해 볼 후보</p>
         <div class="tblwrap"><table><thead><tr><th>카테고리</th><th class="num">미판매 수</th><th class="num">등록 경과</th><th></th></tr></thead>
         <tbody>${ug.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.n}개</td><td class="num">${v.maxAge?`${v.minAge===v.maxAge?v.minAge:v.minAge+'~'+v.maxAge}일`:'—'}</td><td>${v.maxAge&&v.maxAge<14?'<span class="chip">신상 — 좀 더 지켜보기</span>':'<span class="chip warn">점검 후보</span>'}</td></tr>`).join('')||'<tr><td class="empty" colspan="4">미판매 자료가 없습니다.</td></tr>'}</tbody></table></div>
-        <p class="note">등록일은 라이선스 만료일−365일로 추정. 등록 14일 미만은 판단 유보가 안전합니다.</p></div>
+        <p class="note">등록일은 쏠북 서버의 등록 시각 기준. 등록 14일 미만은 판단 유보가 안전합니다.</p></div>
     </div>
+    <div class="card"><h2>등록 자료 추이</h2>
+      <p class="desc">날짜별 누적 등록 자료 수 — 지금 ${items.length}개${regDays.length?` · ${regDays[0]} 첫 등록`:''}</p>
+      <div class="chart" id="chReg"></div>
+      <p class="note">쏠북 서버의 등록 시각 기준(판매중단 포함)${noReg?` · 등록 시각이 없는 ${noReg}개는 빠짐`:''}. 점에 올리면 그날 새로 등록된 유형별 갯수가 보입니다.</p></div>
     <div class="card"><h2>라이선스 만료 타임라인</h2>
-      <p class="desc">만료일이 가까운 순 — 90일 내 만료는 자동으로 표시됩니다</p>
+      <p class="desc">만료일이 가까운 순 — 90일 내 만료는 자동으로 표시됩니다. 만료일은 등록일과 따로 정해지므로 위 추이와 다릅니다.</p>
       <div class="tblwrap"><table><thead><tr><th>만료일</th><th></th><th class="num">자료 수</th><th class="num">누적 매출</th></tr></thead>
       <tbody>${eg.map(g=>`<tr><td class="nm">${esc(g.date)}</td><td>${dchip(g.dday)}</td><td class="num">${g.n}개</td><td class="num">${won(g.rev)}</td></tr>`).join('')}</tbody></table></div>
       <p class="note">D-day는 마지막으로 붙여넣은 데이터 기준입니다.</p></div>`;
@@ -2038,6 +2059,7 @@ function renderTail(A){
     const n=items.filter(fn).length;
     return {label, value:n, tipHtml:`<div class="t1">${label}</div><div class="t2">${n}개 자료</div>`};
   }), {fmt:v=>v+'개'});
+  lineChart($('#chReg'), regPts, {fmt:v=>v.toLocaleString('ko-KR')+'개'});
 }
 function renderData(A){
   const p=$('#p-data');
