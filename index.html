@@ -1408,7 +1408,8 @@ function buildInsights(A){
     });
     const bi=dow.indexOf(Math.max(...dow));
     const bh=Object.entries(hour).sort((a,b)=>b[1]-a[1])[0];
-    add('struct',`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다 (${PATTERN_SKIP_LABEL}${ptx.length<50?` · 구매 표본 ${ptx.length}개, 아직 참고용`:''}).`);
+    // 정산이 제외 달(PATTERN_SKIP_MONTH)뿐이면 ptx 가 비어 bh 가 없다 — 그땐 피크 문장을 내지 않는다
+    if(bh) add('struct',`확정 거래 기준으로는 <b>${DOW[bi]}요일</b>·<b>${bh[0]}시~${+bh[0]+1}시</b>에 구매가 몰리는 것으로 보입니다 (${PATTERN_SKIP_LABEL}${ptx.length<50?` · 구매 표본 ${ptx.length}개, 아직 참고용`:''}).`);
     // 재구매
     if(A.orders.length) add('struct',`구매 ${T.n}개는 <b>결제 ${A.orders.length}건</b>에서 나왔습니다 — 결제당 평균 ${(T.n/A.orders.length).toFixed(1)}개, 결제당 객단가 <b>${won(Math.round(T.amount/A.orders.length))}</b>. 자료를 늘리는 것 못지않게 한 결제에 더 담기게(시리즈 완결·연관 노출) 하는 게 매출 레버입니다.`);
     const revisit=A.custs.filter(c=>c.days.size>=2).length;
