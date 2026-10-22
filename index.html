@@ -548,10 +548,10 @@ function cancelPairs(){
   });
   return {drop, pairs};
 }
-// 깍두기 고객 (2026-10-22 사용자 «#228502 #234481 는 완전히 제외, 깍두기처럼 별도로, 모든 통계에서도 완전 제외»):
+// 깍두기 고객 (2026-10-22 사용자 «#228502 #234481 #234500 은 완전히 제외, 깍두기처럼 별도로, 모든 통계에서도 완전 제외»):
 // 이 고객의 구매는 정산 집계(validTxns)에서 빼고, 실시간 스냅샷의 자료별 구매 갯수·거래액에서도 뺀다(adjustSnaps).
 // 정산 탭 맨 아래 «깍두기» 카드에만 따로 보인다.
-const EXCLUDED_CUSTS=new Set(['228502','234481']);
+const EXCLUDED_CUSTS=new Set(['228502','234481','234500']);
 const isExcl=t=>EXCLUDED_CUSTS.has(String(t.cust));
 function cancelValid(){ const {drop}=cancelPairs(); return state.txns.filter(t=>!drop.has(t.tid)); }
 function validTxns(){ return cancelValid().filter(t=>!isExcl(t)); }
