@@ -125,6 +125,15 @@ button.danger{color:var(--crit)}
 }
 .tab:hover{background:var(--accent-soft); color:var(--ink); border-color:transparent}
 .tab[aria-selected=true], .tab[aria-selected=true]:hover{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+/* 깍두기 포함/제외 토글 — 탭 줄 맨 오른쪽 (2026-10-22 사용자). 클래스가 .tab 이 아니어야 탭 목록에 안 섞인다 */
+.excl-tog{margin-left:auto; position:sticky; right:0; box-shadow:-10px 0 8px -4px var(--bg, var(--surface)); display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--surface);
+  border-radius:999px; padding:6px 12px 6px 8px; font-size:13.5px; color:var(--ink-2); white-space:nowrap; cursor:pointer}
+.excl-tog .sw{position:relative; width:30px; height:17px; border-radius:999px; background:var(--line); transition:background .12s; flex:none}
+.excl-tog .sw::after{content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; transition:left .12s}
+.excl-tog[aria-pressed=true]{border-color:var(--accent); color:var(--ink)}
+.excl-tog[aria-pressed=true] .sw{background:var(--accent)}
+.excl-tog[aria-pressed=true] .sw::after{left:15px}
+.excl-tog b{font-weight:600}
 .panel{display:none}
 .panel.on{display:flex; flex-direction:column; gap:16px}
 
@@ -321,6 +330,7 @@ input[type=password], input[type=text]{
     <button class="tab" role="tab" data-p="settle">정산</button>
     <button class="tab" role="tab" data-p="tail">롱테일·만료</button>
     <button class="tab" role="tab" data-p="data">데이터 관리</button>
+    <button class="excl-tog" id="exclTog" type="button" aria-pressed="false" title="깍두기 고객(통계 제외 고객)의 구매를 전체 통계에 넣어 볼지 정합니다"></button>
   </div>
 
   <section class="panel" id="p-delta"></section>
@@ -552,10 +562,15 @@ function cancelPairs(){
 // 이 고객의 구매는 정산 집계(validTxns)에서 빼고, 실시간 스냅샷의 자료별 구매 갯수·거래액에서도 뺀다(adjustSnaps).
 // 정산 탭 맨 아래 «깍두기» 카드에만 따로 보인다.
 const EXCLUDED_CUSTS=new Set(['228502','234481','234500']);
-const isExcl=t=>EXCLUDED_CUSTS.has(String(t.cust));
+const isExclCust=t=>EXCLUDED_CUSTS.has(String(t.cust));
+// 탭 줄 맨 오른쪽 토글(2026-10-22 사용자 «깍두기 뺀 버전, 들어간 버전을 스위칭하면서»): 켜면 깍두기 고객도 모든 통계에 넣는다.
+// 보는 사람마다 이 브라우저에만 기억한다(기본은 제외).
+const EXCL_KEY='pi-excl-include';
+let INCLUDE_EXCL=false; try{ INCLUDE_EXCL=localStorage.getItem(EXCL_KEY)==='1'; }catch(e){}
+const isExcl=t=>!INCLUDE_EXCL&&isExclCust(t);
 function cancelValid(){ const {drop}=cancelPairs(); return state.txns.filter(t=>!drop.has(t.tid)); }
 function validTxns(){ return cancelValid().filter(t=>!isExcl(t)); }
-function excludedTxns(){ return cancelValid().filter(isExcl); }
+function excludedTxns(){ return cancelValid().filter(isExclCust); }   // 깍두기 카드용 — 토글과 상관없이 그 고객 구매 전부
 // 실시간 수집 스냅샷의 자료별 구매 갯수·거래액 보정 (2026-09-15 실측, 취소 7건 전수):
 // 쏠북 /handouts 의 salesCount 는 결제취소를 +1 로 한 번 더 센다(구매 1 + 취소 1 = 2개).
 // totalSales 는 7건 중 2건만 취소액을 빼고 5건은 오히려 취소액을 더한다(= 정산 순액 + 2×취소액).
@@ -575,7 +590,7 @@ function adjustSnaps(){
   // (2026-09-22 고2 YBM(박) 2과 변형문제: 실제 +10,149원인데 −9,651원 — 사용자 지적).
   const subtractRev=new Map();
   const exclByName=new Map();
-  excludedTxns().forEach(t=>{ if(!exclByName.has(t.name)) exclByName.set(t.name,[]); exclByName.get(t.name).push(t); });
+  if(!INCLUDE_EXCL) excludedTxns().forEach(t=>{ if(!exclByName.has(t.name)) exclByName.set(t.name,[]); exclByName.get(t.name).push(t); });
   if(state.snaps.length){
     const last=state.snaps[state.snaps.length-1];
     last.items.forEach(it=>{
@@ -1958,7 +1973,7 @@ function exclCard(A){
   const sum=k=>X.reduce((a,t)=>a+t[k],0);
   const rows=[...by.values()].sort((a,b)=>b.amount-a.amount);
   return `<div class="card"><h2>깍두기 — 통계 제외 고객</h2>
-    <p class="desc">아래 고객의 구매는 KPI·변동·추세·랭킹·정산 등 <b>모든 통계에서 빠져 있습니다</b>. 합계 구매 ${X.length}개 · 거래액 ${won(sum('amount'))} · 정산 수익 ${won(sum('net'))}</p>
+    <p class="desc">${INCLUDE_EXCL?'지금은 탭 줄 오른쪽 토글이 <b>«포함»</b>이라 아래 고객의 구매도 모든 통계에 <b>들어가 있습니다</b>.':'아래 고객의 구매는 KPI·변동·추세·랭킹·정산 등 <b>모든 통계에서 빠져 있습니다</b>.'} 합계 구매 ${X.length}개 · 거래액 ${won(sum('amount'))} · 정산 수익 ${won(sum('net'))}</p>
     <div class="tblwrap"><table>
       <thead><tr><th>고객</th><th class="num">구매 갯수</th><th class="num">거래액</th><th class="num">정산 수익</th><th>기간</th></tr></thead>
       <tbody>${rows.map(g=>`<tr><td class="nm">#${esc(g.cust)}
@@ -2316,6 +2331,17 @@ function selectTab(name){
   document.querySelectorAll('.panel').forEach(s=>s.classList.toggle('on', s.id==='p-'+name));
 }
 tabs.forEach(b=>b.addEventListener('click',()=>{ selectTab(b.dataset.p); renderAll(); }));
+const exclTog=$('#exclTog');
+function paintExclTog(){
+  exclTog.setAttribute('aria-pressed', INCLUDE_EXCL?'true':'false');
+  exclTog.innerHTML=`<span class="sw"></span>깍두기 <b>${INCLUDE_EXCL?'포함':'제외'}</b>`;
+}
+paintExclTog();
+exclTog.addEventListener('click',()=>{
+  INCLUDE_EXCL=!INCLUDE_EXCL;
+  try{ localStorage.setItem(EXCL_KEY, INCLUDE_EXCL?'1':'0'); }catch(e){}
+  paintExclTog(); renderAll();
+});
 
 $('#snapDate').value=todaySeoul();
 $('#btnParse').addEventListener('click',()=>{
