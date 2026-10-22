@@ -548,7 +548,14 @@ function cancelPairs(){
   });
   return {drop, pairs};
 }
-function validTxns(){ const {drop}=cancelPairs(); return state.txns.filter(t=>!drop.has(t.tid)); }
+// 깍두기 고객 (2026-10-22 사용자 «#228502 #234481 는 완전히 제외, 깍두기처럼 별도로, 모든 통계에서도 완전 제외»):
+// 이 고객의 구매는 정산 집계(validTxns)에서 빼고, 실시간 스냅샷의 자료별 구매 갯수·거래액에서도 뺀다(adjustSnaps).
+// 정산 탭 맨 아래 «깍두기» 카드에만 따로 보인다.
+const EXCLUDED_CUSTS=new Set(['228502','234481']);
+const isExcl=t=>EXCLUDED_CUSTS.has(String(t.cust));
+function cancelValid(){ const {drop}=cancelPairs(); return state.txns.filter(t=>!drop.has(t.tid)); }
+function validTxns(){ return cancelValid().filter(t=>!isExcl(t)); }
+function excludedTxns(){ return cancelValid().filter(isExcl); }
 // 실시간 수집 스냅샷의 자료별 구매 갯수·거래액 보정 (2026-09-15 실측, 취소 7건 전수):
 // 쏠북 /handouts 의 salesCount 는 결제취소를 +1 로 한 번 더 센다(구매 1 + 취소 1 = 2개).
 // totalSales 는 7건 중 2건만 취소액을 빼고 5건은 오히려 취소액을 더한다(= 정산 순액 + 2×취소액).
@@ -567,6 +574,8 @@ function adjustSnaps(){
   // 스냅샷마다 따로 판정하면 경계값(순액 ±몇백 원)에서 하루는 안 빼고 다음 날은 빼서, 변동 탭에 −2×취소액이 허깨비로 찍힌다
   // (2026-09-22 고2 YBM(박) 2과 변형문제: 실제 +10,149원인데 −9,651원 — 사용자 지적).
   const subtractRev=new Map();
+  const exclByName=new Map();
+  excludedTxns().forEach(t=>{ if(!exclByName.has(t.name)) exclByName.set(t.name,[]); exclByName.get(t.name).push(t); });
   if(state.snaps.length){
     const last=state.snaps[state.snaps.length-1];
     last.items.forEach(it=>{
@@ -596,6 +605,10 @@ function adjustSnaps(){
       it.buyers=Math.max(0,it.buyersRaw-adj);
       it.rev=it.revRaw;
       if(sc){ const dec=subtractRev.has(it.name)?subtractRev.get(it.name):(it.revRaw-2*cAmt>=net); it.rev=dec?it.revRaw-2*cAmt:it.revRaw; }
+      // 깍두기 고객의 구매(취소 짝 뺀 것)를 그 스냅샷 날짜까지 빼낸다 — 정산이 들어오기 전 몇 시간은 서버값에 남아 있다
+      const ex=(exclByName.get(it.name)||[]).filter(t=>t.dt.slice(0,10)<=sn.date);
+      it.excluded=ex.length;
+      if(ex.length){ it.buyers=Math.max(0,it.buyers-ex.length); it.rev=Math.max(0,it.rev-ex.reduce((a,t)=>a+t.amount,0)); }
     });
   });
 }
@@ -959,7 +972,7 @@ function computeAll(){
   const subs=withSubs.length?withSubs[withSubs.length-1].subs:null;
   const subsPrevSnap=withSubs.length>1?withSubs[withSubs.length-2]:null;
   const subsPrev=subsPrevSnap?subsPrevSnap.subs:null, subsPrevDate=subsPrevSnap?subsPrevSnap.date:null;
-  return {snaps,latest,prev,tl,tp,deltas,removed,momentum,txns,T,covDays,monthly,opt,disc:{n:discN,sum:discSum},custs,segOf,orders,subs,subsPrev,subsPrevDate};
+  return {snaps,latest,prev,tl,tp,deltas,removed,momentum,txns,T,covDays,monthly,opt,disc:{n:discN,sum:discSum},custs,segOf,orders,subs,subsPrev,subsPrevDate,excl:excludedTxns()};
 }
 function groupBy(items, key){
   const m=new Map();
@@ -1935,6 +1948,23 @@ function pivotWire(p,A){
     refresh();
   });
 }
+// 깍두기 카드: 통계에서 뺀 고객의 구매를 고객별로 따로 보여 준다 (EXCLUDED_CUSTS)
+function exclCard(A){
+  const X=A.excl; if(!X.length) return '';
+  const by=new Map();
+  X.forEach(t=>{ if(!by.has(t.cust)) by.set(t.cust,{cust:t.cust,n:0,amount:0,net:0,first:t.dt,last:t.dt,rows:[]});
+    const g=by.get(t.cust); g.n++; g.amount+=t.amount; g.net+=t.net; g.rows.push(t);
+    if(t.dt<g.first) g.first=t.dt; if(t.dt>g.last) g.last=t.dt; });
+  const sum=k=>X.reduce((a,t)=>a+t[k],0);
+  const rows=[...by.values()].sort((a,b)=>b.amount-a.amount);
+  return `<div class="card"><h2>깍두기 — 통계 제외 고객</h2>
+    <p class="desc">아래 고객의 구매는 KPI·변동·추세·랭킹·정산 등 <b>모든 통계에서 빠져 있습니다</b>. 합계 구매 ${X.length}개 · 거래액 ${won(sum('amount'))} · 정산 수익 ${won(sum('net'))}</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>고객</th><th class="num">구매 갯수</th><th class="num">거래액</th><th class="num">정산 수익</th><th>기간</th></tr></thead>
+      <tbody>${rows.map(g=>`<tr><td class="nm">#${esc(g.cust)}
+        <details class="moreb"><summary>구매 ${g.n}개 보기</summary>${g.rows.map(t=>`<div class="note">${esc(t.dt)} · ${esc(shortName(t.name))} · ${won(t.amount)}</div>`).join('')}</details></td>
+        <td class="num">${g.n}개</td><td class="num">${won(g.amount)}</td><td class="num">${won(g.net)}</td><td>${g.first.slice(0,10)} ~ ${g.last.slice(0,10)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
 function renderSettle(A){
   const p=$('#p-settle');
   if(!A.txns.length){
@@ -1974,7 +2004,8 @@ function renderSettle(A){
         <thead><tr><th>월</th><th class="num">결제 건수</th><th class="num">구매 갯수</th><th class="num">거래액</th><th class="num">수수료</th><th class="num">정산 수익</th></tr></thead>
         <tbody>${[...A.monthly].reverse().map(m=>`<tr><td class="nm">${m.m.replace('-','.')}</td><td class="num">${m.orders||0}건</td><td class="num">${m.n}개</td><td class="num">${won(m.amount)}</td><td class="num">${won(m.fee)}</td><td class="num">${won(m.net)}</td></tr>`).join('')}
         <tr><td class="nm">합계</td><td class="num">${A.orders.length}건</td><td class="num">${A.T.n}개</td><td class="num">${won(A.T.amount)}</td><td class="num">${won(A.T.fee)}</td><td class="num"><b>${won(A.T.net)}</b></td></tr></tbody></table></div></div>
-    ${pivotCard(A)}`;
+    ${pivotCard(A)}
+    ${exclCard(A)}`;
   pivotWire(p,A);
   colChart($('#chMonth'), A.monthly.map(m=>({x:`${m.m.slice(2,4)}년 ${+m.m.slice(5)}월`, value:m.net,
     tipHtml:`<div class="t1">${m.m.replace('-','.')}</div><div class="t2">정산 수익 ${won(m.net)} · 결제 ${m.orders||0}건 · 구매 ${m.n}개 · 거래액 ${won(m.amount)}</div>`})));
