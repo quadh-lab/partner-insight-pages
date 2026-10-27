@@ -179,7 +179,31 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .mx .b.sold{background:var(--accent); color:#fff}
 .mx .b.listed{background:var(--chip); color:var(--ink-2)}
 .mx .b.miss{background:none; border:1px dashed var(--baseline); color:var(--muted)}
-.mx .mxlab{font-size:10px; color:var(--muted); line-height:1; margin-bottom:2px}
+/* 커버리지 히트맵 — 유형 = 줄, 과 = 20px 칸 (2026-10-27). 시리즈 이름 칸은 가로 스크롤해도 붙어 있게 */
+.mxh{width:auto; font-size:12.5px}
+.mxh td{padding:1px 2px; border-bottom:none; vertical-align:middle}
+.mxh th{padding:4px 2px}
+.mxh tr.g0 td{border-top:1px solid var(--line); padding-top:5px}
+.mxh tr.gz td{padding-bottom:5px}
+.mxh .mxh-nm{position:sticky; left:0; background:var(--surface); z-index:1; padding:5px 12px 5px 0; min-width:190px; max-width:290px; vertical-align:top}
+.mxh td.mxh-nm .nm{font-weight:500; line-height:1.35}
+.mxh td.num{padding:5px 10px 5px 4px; vertical-align:top; font-size:12px}
+.mxh .mxh-sub{font-size:11px; color:var(--muted); margin-top:2px; line-height:1.35}
+.mxh .mxh-t{font-size:11px; color:var(--muted); text-align:right; padding-right:6px; white-space:nowrap}
+.mxh .mxh-c{width:22px; text-align:center; font-size:11px; color:var(--muted); font-weight:400}
+.mxh .q{display:block; width:20px; height:15px; border-radius:3px; font-size:9.5px; line-height:15px; font-weight:600; text-align:center; font-variant-numeric:tabular-nums; box-sizing:border-box}
+.mxh .q.sold{background:var(--accent); color:#fff}
+.mxh .q.listed{background:var(--chip)}
+.mxh .q.miss{border:1px dashed var(--baseline)}
+.mxs{columns:2 380px; column-gap:32px}
+.mxs-row{display:flex; align-items:center; gap:8px; break-inside:avoid; padding:4px 0; border-bottom:1px solid var(--line); font-size:12.5px}
+.mxs-nm{flex:1; min-width:0}
+.mxs-rev{color:var(--ink-2); font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.mxs-b{white-space:nowrap}
+.mxs .b{display:inline-block; min-width:18px; padding:0 3px; border-radius:4px; font-size:10.5px; font-weight:600; margin:0 1px; text-align:center; line-height:16px}
+.mxs .b.sold{background:var(--accent); color:#fff}
+.mxs .b.listed{background:var(--chip); color:var(--ink-2)}
+.mxs .b.miss{border:1px dashed var(--baseline); color:var(--muted); line-height:14px}
 .mxlegend{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:10px; align-items:center}
 .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:8px}
 .legend .k{display:inline-flex; align-items:center; gap:6px}
@@ -1710,9 +1734,9 @@ function renderRank(A){
     </div>
     <div class="card"><h2>교재별 상세</h2><div id="catTbl"></div></div>
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
-      <p class="desc">칸마다 자료 유형 3종을 분·워·변 순으로 찍습니다. 파란색 = 판매됨 · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다.</p>
-      <div class="tblwrap" id="mxWrap"></div>
-      <div class="mxlegend"><span><span class="b sold" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--accent);color:#fff;text-align:center">워</span> 판매</span><span><span class="b listed" style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--ink-2);text-align:center">워</span> 등록·미판매</span><span><span style="display:inline-block;min-width:22px;padding:1px 5px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px dashed var(--baseline);color:var(--muted);text-align:center">분</span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 킬=킬러변형(시그니처, 변형문제 칸과 별도) · 숫자 열 = 과/강 번호(MT1~3 = 독해연습 Mini Test)</span></div></div>
+      <p class="desc">줄 = 자료 유형, 칸 = 과·강 번호. 파란 칸 = 판매됨(숫자는 구매 갯수) · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다. 칸에 마우스를 올리면 자료 이름이 나옵니다.</p>
+      <div class="mxlegend" style="margin:0 0 10px"><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;background:var(--accent);color:#fff;font-size:9.5px;font-weight:600;line-height:15px;text-align:center;vertical-align:-3px">12</span> 판매</span><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;background:var(--chip);vertical-align:-3px"></span> 등록·미판매</span><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;border:1px dashed var(--baseline);box-sizing:border-box;vertical-align:-3px"></span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 킬=킬러변형(시그니처, 변형문제 칸과 별도)</span></div>
+      <div class="tblwrap" id="mxWrap"></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1744,48 +1768,55 @@ function renderRank(A){
       <td class="num">${r.buyers}</td>
       <td class="num">${won(r.rev)}</td>
       <td class="num">${won(r.n?Math.round(r.rev/r.n):0)}</td></tr>`).join('')}</tbody></table></div>`;
-  // 커버리지 매트릭스
+  // 커버리지 매트릭스 — 과·강이 있는 시리즈는 «유형 = 줄, 과 = 칸» 의 히트맵, 없는 시리즈(모의고사·RP 단원)는 아래 칩 목록.
+  // 2026-10-27 사용자 «옆으로 너무 넘어가야 해서»: 전에는 칸마다 분·워·변·파 글자 배지 4개를 찍어 22칸 × 약 130px = 표 3,000px(화면 3배)였다.
+  // 유형 글자를 줄 머리에 한 번만 적고 칸은 20px 색 블록으로 줄였다 — 같은 유형이 가로 띠로 이어져 «어느 유형이 비었나» 가 바로 보인다.
   const series=buildSeries(items);
-  const chAll=Math.max(...series.map(x=>x.chMax),1);
-  let mx=`<table class="mx"><thead><tr><th>시리즈</th><th class="num">누적</th>`;
-  for(let c=1;c<=chAll;c++) mx+=`<th style="text-align:center">${c}</th>`;
-  mx+=`</tr></thead><tbody>`;
-  // 칸마다 유형 4종(분·워·변·파)을 같은 순서로 찍는다 — 행끼리 세로로 읽히게.
-  // 중학(본문 워크북) 라인은 워크북 한 종뿐이라 '워본' 하나만 찍는다.
-  const badge=(it,sh)=>`<span class="b ${it.rev>0?'sold':'listed'}" title="${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개">${sh}</span>`;
+  const chSer=series.filter(sr=>sr.chMax>0), flatSer=series.filter(sr=>sr.chMax===0);
+  const chAll=Math.max(...chSer.map(x=>x.chMax),1);
+  const tipOf=it=>`${esc(shortName(it))} · ${won(it.rev)} · 구매 ${it.buyers}개`;
+  const badge=(it,sh)=>`<span class="b ${it.rev>0?'sold':'listed'}" title="${tipOf(it)}">${sh}</span>`;
   const missBadge=(sr,tp,sh,where)=>`<span class="b miss" title="미등록 — 제작 후보: ${esc(sr.key)}${where?' '+where:''} ${tp}">${sh}</span>`;
-  series.forEach(sr=>{
+  const catChip=sr=>sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
+  const revTxt=sr=>sr.rev>0?wonC(sr.rev):'<span class="zero">0원</span>';
+  let mx=`<table class="mx mxh"><thead><tr><th class="mxh-nm">시리즈</th><th class="num">누적</th><th></th>`;
+  for(let c=1;c<=chAll;c++) mx+=`<th class="mxh-c">${c}</th>`;
+  mx+=`</tr></thead><tbody>`;
+  chSer.forEach(sr=>{
     const fams=seriesFams(sr);
-    const catChip=sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
-    // 과 번호가 없는 자료가 번호 있는 시리즈에 섞이면(중1 YBM(김) SL 본문 워크북) 칸이 없어 사라지므로 시리즈 이름 옆에 찍는다
-    const loose=sr.chMax>0?sr.items.filter(i=>!(+i.chapter||0)).map(it=>badge(it,TYPE_SHORT_OF(it.type))).join(''):'';
-    mx+=`<tr><td class="nm" style="white-space:nowrap">${esc(sr.key)}${catChip}${loose?' '+loose:''}</td><td class="num">${sr.rev>0?won(sr.rev):'<span class="zero">0원</span>'}</td>`;
-    if(sr.chMax===0){
-      // 과·강 번호가 없는 자료(모의고사). 칸을 나눌 축이 없을 뿐 유형 3종은 같으므로
-      // 한 칸에 분·워·변·파 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다.
-      mx+=`<td colspan="${chAll}" style="text-align:left">`;
-      fams.forEach(([tp,sh])=>{
-        const it=sr.items.find(i=>i.type===tp&&!i.sig);   // 시그니처(킬러변형)는 변형문제 칸을 대신 채우지 않고 뒤에 따로 찍는다
-        mx+=it?badge(it,sh):missBadge(sr,tp,sh,'');
-      });
-      sr.items.filter(i=>i.sig).forEach(it=>{ mx+=badge(it,(SIGNATURES.find(s=>s.key===it.sig)||{short:'시'}).short); });
-      mx+=`</td>`;
-    }else{
+    // 과 번호가 없는 자료가 번호 있는 시리즈에 섞이면(중1 YBM(김) SL 본문 워크북) 칸이 없어 사라지므로 시리즈 이름 아래에 찍는다
+    const loose=sr.items.filter(i=>!(+i.chapter||0)).map(it=>badge(it,TYPE_SHORT_OF(it.type))).join('');
+    const labs=Object.keys(sr.chLabels).length?`<div class="mxh-sub">칸 = ${Object.entries(sr.chLabels).map(([c,l])=>`${c}:${esc(l)}`).join(' ')}</div>`:'';
+    fams.forEach(([tp,sh],fi)=>{
+      mx+=`<tr class="${fi===0?'g0':''}${fi===fams.length-1?' gz':''}">`;
+      if(fi===0) mx+=`<td class="mxh-nm" rowspan="${fams.length}"><div class="nm">${esc(sr.key)}${catChip(sr)}</div>${labs}${loose?`<div class="mxh-sub">${loose}</div>`:''}</td><td class="num" rowspan="${fams.length}">${revTxt(sr)}</td>`;
+      mx+=`<td class="mxh-t">${sh}</td>`;
       for(let c=1;c<=chAll;c++){
-        if(c>sr.chMax){ mx+=`<td></td>`; continue; }
+        if(c>sr.chMax){ mx+=`<td class="mxh-c"></td>`; continue; }
         const lab=sr.chLabels[c]; // MT1~3 처럼 번호 대신 이름으로 적힌 강
-        mx+=`<td style="text-align:center; white-space:nowrap">${lab?`<div class="mxlab">${esc(lab)}</div>`:''}`;
-        fams.forEach(([tp,sh])=>{
-          const it=sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c);
-          mx+=it?badge(it,sh):missBadge(sr,tp,sh,lab||`${c}${sr.unit}`);
-        });
-        mx+=`</td>`;
+        const it=sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c);
+        mx+=`<td class="mxh-c">${it
+          ?`<span class="q ${it.rev>0?'sold':'listed'}" title="${tipOf(it)}">${it.buyers>0?(it.buyers>99?'99+':it.buyers):''}</span>`
+          :`<span class="q miss" title="미등록 — 제작 후보: ${esc(sr.key)} ${esc(lab||c+sr.unit)} ${tp}"></span>`}</td>`;
       }
-    }
-    mx+=`</tr>`;
+      mx+=`</tr>`;
+    });
   });
   mx+=`</tbody></table>`;
-  $('#mxWrap').innerHTML=mx;
+  // 과·강 번호가 없는 자료(모의고사·RP 단원). 칸을 나눌 축이 없을 뿐 유형은 같으므로
+  // 한 줄에 분·워·변·파 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다. 좁아서 두세 단으로 흘린다.
+  let fl=`<div class="mxt" style="margin:18px 0 6px">회차·단원 단위 (모의고사 · Reading Power) <span class="zero" style="font-weight:400">— 과·강 칸이 없어 한 줄에 유형만</span></div><div class="mxs">`;
+  flatSer.forEach(sr=>{
+    let bs='';
+    seriesFams(sr).forEach(([tp,sh])=>{
+      const it=sr.items.find(i=>i.type===tp&&!i.sig);   // 시그니처(킬러변형)는 변형문제 칸을 대신 채우지 않고 뒤에 따로 찍는다
+      bs+=it?badge(it,sh):missBadge(sr,tp,sh,'');
+    });
+    sr.items.filter(i=>i.sig).forEach(it=>{ bs+=badge(it,(SIGNATURES.find(s=>s.key===it.sig)||{short:'시'}).short); });
+    fl+=`<div class="mxs-row"><span class="mxs-nm">${esc(sr.key)}${catChip(sr)}</span><span class="mxs-rev">${revTxt(sr)}</span><span class="mxs-b">${bs}</span></div>`;
+  });
+  fl+=`</div>`;
+  $('#mxWrap').innerHTML=mx+(flatSer.length?fl:'');
   // 공략 지점
   const tg=buildTargets(A);
   $('#targetList').innerHTML=tg.length?`<div class="insights">${tg.map((t,i)=>`
