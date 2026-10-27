@@ -182,7 +182,10 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 /* 커버리지 히트맵 — 유형 = 줄, 과 = 20px 칸 (2026-10-27). 시리즈 이름 칸은 가로 스크롤해도 붙어 있게 */
 .mxh{width:auto; font-size:12.5px}
 .mxh td{padding:1px 2px; border-bottom:none; vertical-align:middle}
-.mxh th{padding:4px 2px}
+/* 머리 줄(과 번호)은 상자 안에서 위에 고정 — 2026-10-28 사용자 «아래로 내리니까 몇 과인지 안 보여». 페이지 스크롤에 붙이려면 가로 스크롤 상자를 없애야 해서, 상자 높이를 화면에 맞추고 그 안에서 고정한다 */
+.mxh-box{overflow:auto; max-height:calc(100vh - 90px)}
+.mxh th{padding:4px 2px; position:sticky; top:0; background:var(--surface); z-index:2; box-shadow:inset 0 -1px 0 var(--line)}
+.mxh th.mxh-nm{left:0; z-index:3}
 .mxh tr.g0 td{border-top:1px solid var(--line); padding-top:5px}
 .mxh tr.gz td{padding-bottom:5px}
 .mxh .mxh-nm{position:sticky; left:0; background:var(--surface); z-index:1; padding:5px 12px 5px 0; min-width:190px; max-width:290px; vertical-align:top}
@@ -191,6 +194,7 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .mxh .mxh-sub{font-size:11px; color:var(--muted); margin-top:2px; line-height:1.35}
 .mxh .mxh-t{font-size:11px; color:var(--muted); text-align:right; padding-right:6px; white-space:nowrap}
 .mxh .mxh-c{width:22px; text-align:center; font-size:11px; color:var(--muted); font-weight:400}
+.mxh .mxh-sl{border-left:1px solid var(--line); padding-left:6px}
 .mxh .q{display:block; width:20px; height:15px; border-radius:3px; font-size:9.5px; line-height:15px; font-weight:600; text-align:center; font-variant-numeric:tabular-nums; box-sizing:border-box}
 .mxh .q.sold{background:var(--accent); color:#fff}
 .mxh .q.listed{background:var(--chip)}
@@ -443,6 +447,8 @@ function classify(name){
   const mt=!chm&&!bb&&name.match(/\bMT(\d)\b/);
   if(bb){ chm=bb; chCode=bb[1]; chLabel=bb[1]; chUnit='강'; chapter=''; }
   else if(mt){ chm=mt; chapter=String(12+ +mt[1]); chUnit='강'; chLabel=mt[0]; }
+  // 교과서 Special Lesson(«SL» · «SL1» · «SL2») — 과 번호가 없어 매트릭스 오른쪽 끝 SL 열에 따로 놓는다(2026-10-28)
+  const sl=chapter?'':((name.match(/(?:^|\s)(SL\d?)(?=\s|$)/)||[])[1]||'');
   // 구분: 교과서(출판사 패턴) / 수능·모의고사(월·학평·모평 등) / 부교재(올림포스·수능특강 등 그 외)
   let category;
   if(pub!=='기타') category='교과서';
@@ -454,7 +460,7 @@ function classify(name){
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
   course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널|킬러변형)/g,'').replace(/\(([^)]{2,})\)/g,'')   // 킬러변형도 유형 낱말처럼 떼어 «고2 2026 9월» 형제들과 같은 시리즈로 묶는다
     .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
-  return {grade,pub,type,sig,teacher,chapter,chUnit,chLabel,chCode,course,category};
+  return {grade,pub,type,sig,teacher,chapter,chUnit,chLabel,chCode,sl,course,category};
 }
 // 시그니처 상품 — 유형(type)은 일반 유형에 합치고(킬러변형 → 변형문제) sig 로만 표시해 «시그니처» 탭에서 따로 본다(2026-10-06).
 // 새 시그니처가 생기면 여기에 한 줄 더하고 classify() 의 유형 합치기에 짝을 넣는다.
@@ -1736,7 +1742,7 @@ function renderRank(A){
     <div class="card"><h2>교재×과 커버리지 매트릭스</h2>
       <p class="desc">줄 = 자료 유형, 칸 = 과·강 번호. 파란 칸 = 판매됨(숫자는 구매 갯수) · 회색 = 등록됐지만 미판매 · 점선 = 미등록(제작 후보). 팔리는 시리즈의 점선 칸이 곧 공략 지점입니다. 칸에 마우스를 올리면 자료 이름이 나옵니다.</p>
       <div class="mxlegend" style="margin:0 0 10px"><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;background:var(--accent);color:#fff;font-size:9.5px;font-weight:600;line-height:15px;text-align:center;vertical-align:-3px">12</span> 판매</span><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;background:var(--chip);vertical-align:-3px"></span> 등록·미판매</span><span><span style="display:inline-block;width:20px;height:15px;border-radius:3px;border:1px dashed var(--baseline);box-sizing:border-box;vertical-align:-3px"></span> 미등록 = 제작 후보</span><span class="note">분=분석자료 · 워=워크북 · 워본=본문 워크북 · 변=변형문제 · 파=파이널 · 킬=킬러변형(시그니처, 변형문제 칸과 별도)</span></div>
-      <div class="tblwrap" id="mxWrap"></div></div>
+      <div id="mxWrap"></div></div>
     <div class="card"><h2>공략 지점</h2>
       <p class="desc">판매 실적이 있는 시리즈의 빈칸과 이어살 수요를 매출 순으로 제안합니다. 롱테일 전략이라 미판매 자료도 유지 — 여기서는 ‘다음에 무엇을 만들고 노출할지’만 다룹니다.</p>
       <div id="targetList"></div></div>`;
@@ -1780,12 +1786,22 @@ function renderRank(A){
   const catChip=sr=>sr.category&&sr.category!=='교과서'?` <span class="chip">${esc(sr.category)}</span>`:'';
   const revTxt=sr=>sr.rev>0?wonC(sr.rev):'<span class="zero">0원</span>';
   let mx=`<table class="mx mxh"><thead><tr><th class="mxh-nm">시리즈</th><th class="num">누적</th><th></th>`;
+  // SL 열 — 과 번호 열 뒤에 SL · SL1 · SL2 … 를 그 표기 그대로 세운다. 전에는 시리즈 이름 밑에 «워본 변» 배지로만 붙어 SL1·SL2 가 구분되지 않았다
+  const slCols=[...new Set(chSer.flatMap(sr=>sr.items.map(i=>i.sl).filter(Boolean)))].sort();
   for(let c=1;c<=chAll;c++) mx+=`<th class="mxh-c">${c}</th>`;
+  slCols.forEach((c,k)=>{ mx+=`<th class="mxh-c${k===0?' mxh-sl':''}">${esc(c)}</th>`; });
   mx+=`</tr></thead><tbody>`;
   chSer.forEach(sr=>{
-    const fams=seriesFams(sr);
-    // 과 번호가 없는 자료가 번호 있는 시리즈에 섞이면(중1 YBM(김) SL 본문 워크북) 칸이 없어 사라지므로 시리즈 이름 아래에 찍는다
-    const loose=sr.items.filter(i=>!(+i.chapter||0)).map(it=>badge(it,TYPE_SHORT_OF(it.type))).join('');
+    // 기본 유형 줄 + 그 시리즈에 실제로 있는 다른 유형(중학 SL 변형문제처럼). 덧붙은 줄은 빈 칸을 «제작 후보» 점선으로 찍지 않는다
+    const base=seriesFams(sr);
+    const extra=[...new Set(sr.items.map(i=>i.type))].filter(t=>t!=='기타'&&!base.some(([b])=>b===t)).map(t=>[t,TYPE_SHORT_OF(t)]);
+    const fams=[...base,...extra];
+    const cell=(it,tp,where,isExtra)=>`<td class="mxh-c">${it
+      ?`<span class="q ${it.rev>0?'sold':'listed'}" title="${tipOf(it)}">${it.buyers>0?(it.buyers>99?'99+':it.buyers):''}</span>`
+      :isExtra?'':`<span class="q miss" title="미등록 — 제작 후보: ${esc(sr.key)} ${esc(where)} ${tp}"></span>`}</td>`;
+    const srSl=new Set(sr.items.map(i=>i.sl).filter(Boolean));
+    // 과 번호도 SL 도 없는 자료가 번호 있는 시리즈에 섞이면 칸이 없어 사라지므로 시리즈 이름 아래에 찍는다
+    const loose=sr.items.filter(i=>!(+i.chapter||0)&&!i.sl).map(it=>badge(it,TYPE_SHORT_OF(it.type))).join('');
     const labs=Object.keys(sr.chLabels).length?`<div class="mxh-sub">칸 = ${Object.entries(sr.chLabels).map(([c,l])=>`${c}:${esc(l)}`).join(' ')}</div>`:'';
     fams.forEach(([tp,sh],fi)=>{
       mx+=`<tr class="${fi===0?'g0':''}${fi===fams.length-1?' gz':''}">`;
@@ -1794,11 +1810,11 @@ function renderRank(A){
       for(let c=1;c<=chAll;c++){
         if(c>sr.chMax){ mx+=`<td class="mxh-c"></td>`; continue; }
         const lab=sr.chLabels[c]; // MT1~3 처럼 번호 대신 이름으로 적힌 강
-        const it=sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c);
-        mx+=`<td class="mxh-c">${it
-          ?`<span class="q ${it.rev>0?'sold':'listed'}" title="${tipOf(it)}">${it.buyers>0?(it.buyers>99?'99+':it.buyers):''}</span>`
-          :`<span class="q miss" title="미등록 — 제작 후보: ${esc(sr.key)} ${esc(lab||c+sr.unit)} ${tp}"></span>`}</td>`;
+        mx+=cell(sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c),tp,lab||c+sr.unit,fi>=base.length);
       }
+      // SL 칸은 그 시리즈에 그 SL 이 하나라도 있을 때만 그린다 — 없는 시리즈는 빈 칸(제작 후보로 치지 않는다)
+      slCols.forEach((c,k)=>{ const sl1=k===0?' mxh-sl':'';
+        mx+=srSl.has(c)?cell(sr.items.find(i=>i.type===tp&&i.sl===c),tp,c,fi>=base.length).replace('class="mxh-c"',`class="mxh-c${sl1}"`):`<td class="mxh-c${sl1}"></td>`; });
       mx+=`</tr>`;
     });
   });
@@ -1816,7 +1832,7 @@ function renderRank(A){
     fl+=`<div class="mxs-row"><span class="mxs-nm">${esc(sr.key)}${catChip(sr)}</span><span class="mxs-rev">${revTxt(sr)}</span><span class="mxs-b">${bs}</span></div>`;
   });
   fl+=`</div>`;
-  $('#mxWrap').innerHTML=mx+(flatSer.length?fl:'');
+  $('#mxWrap').innerHTML=`<div class="mxh-box">${mx}</div>`+(flatSer.length?fl:'');
   // 공략 지점
   const tg=buildTargets(A);
   $('#targetList').innerHTML=tg.length?`<div class="insights">${tg.map((t,i)=>`
