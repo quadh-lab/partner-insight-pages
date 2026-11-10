@@ -448,10 +448,15 @@ function classify(name){
   // 표기를 chCode 에 두고 열 번호(chapter)는 시리즈 안 순번으로 나중에 매긴다(bbbOrdinals) — 안 그러면 단원마다 시리즈가 갈라진다.
   const bb=!chm&&/빠른독해/.test(name)&&name.match(/(?<=^|\s)(P\d-\d{2}|MT\d(?:~\d)?|고난도|실전\d회)(?=\s|$)/);   // 유형독해 마지막은 «MT4~5»
   const mt=!chm&&!bb&&name.match(/\bMT(\d)\b/);
+  // Reading Power 유형편은 «Unit 01» 이 과 번호다(2026-11-11 — 전엔 못 잡아 Unit 하나하나가 따로 시리즈가 되어 모의고사 칩 목록에 36줄로 흩어졌다)
+  const un=!chm&&!bb&&!mt&&name.match(/(?<=^|\s)Unit\s*(\d+)(?=\s|$)/);
   if(bb){ chm=bb; chCode=bb[1]; chLabel=bb[1]; chUnit='강'; chapter=''; }
   else if(mt){ chm=mt; chapter=String(12+ +mt[1]); chUnit='강'; chLabel=mt[0]; }
-  // 교과서 Special Lesson(«SL» · «SL1» · «SL2») — 과 번호가 없어 매트릭스 오른쪽 끝 SL 열에 따로 놓는다(2026-10-28)
-  const sl=chapter?'':((name.match(/(?:^|\s)(SL\d?)(?=\s|$)/)||[])[1]||'');
+  else if(un){ chm=un; chapter=String(+un[1]); chUnit='Unit'; }
+  // 과 번호 밖의 단원 — 매트릭스 오른쪽 끝 덧붙은 열에 표기 그대로 놓는다.
+  // 교과서 Special Lesson «SL»·«SL1»·«SL2»(2026-10-28) · RP «CR 01» → «CR1» · 수능특강 Light «TEST»(2026-11-11 — 전엔 따로 시리즈가 됐다)
+  const slm=chapter?null:name.match(/(?:^|\s)(SL\d?|TEST|CR\s?\d+)(?=\s|$)/);
+  const sl=slm?slm[1].replace(/^CR\s?0*(\d+)$/,'CR$1'):'';
   // 구분: 교과서(출판사 패턴) / 수능·모의고사(월·학평·모평 등) / 부교재(올림포스·수능특강 등 그 외)
   let category;
   if(pub!=='기타') category='교과서';
@@ -461,6 +466,7 @@ function classify(name){
   const cut=course.search(/[A-Za-z가-힣]+\(/);
   if(cut>0) course=course.slice(0,cut);
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
+  else if(slm){ const ci=course.indexOf(slm[1]); if(ci>0) course=course.slice(0,ci); }   // «… 기본 CR 01» → «… 기본» (교과서 SL 은 위 출판사 자르기에서 이미 떨어진다)
   course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널|킬러변형)/g,'').replace(/\(([^)]{2,})\)/g,'')   // 킬러변형도 유형 낱말처럼 떼어 «고2 2026 9월» 형제들과 같은 시리즈로 묶는다
     .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
   return {grade,pub,type,sig,teacher,chapter,chUnit,chLabel,chCode,sl,course,category};
@@ -1277,7 +1283,7 @@ function renderDelta(A){
         <tr class="dg-i" data-g="${i}"${open?'':' hidden'}>
           <td><div class="nm">${esc(shortName(d.it))} ${d.isNew?'<span class="chip acc">신규 등록</span>':''} ${d.statusChanged?`<span class="chip warn">상태: ${esc(d.statusChanged)} → ${esc(d.it.status)}</span>`:''}</div>
               <div class="sub">${esc(d.it.grade)} · ${esc(d.it.pub)} · ${esc(d.it.type)}${d.it.sig?` · <span class="chip acc">시그니처 · ${esc(d.it.sig)}</span>`:''}${d.it.cancels?` · <span class="chip warn">취소 ${d.it.cancels}건 상쇄</span>`:''}</div></td>
-          <td><div class="sub">${esc(d.it.type)}${d.it.chapter?` · ${d.it.chLabel||d.it.chapter+d.it.chUnit}`:''}</div></td>
+          <td><div class="sub">${esc(d.it.type)}${d.it.chapter?` · ${d.it.chLabel||chTxt(d.it.chapter,d.it.chUnit)}`:''}</div></td>
           <td class="num ${cls(d.dRev)}">${sgn(d.dRev,won)}</td>
           <td class="num ${cls(d.dBuy)}">${sgn(d.dBuy,v=>v+'개')}</td>
           <td class="num">${won(d.it.rev)}<div class="sub">${d.it.buyers}개</div></td>
@@ -1795,6 +1801,8 @@ const TYPE_SHORT_OF=tp=>tp==='본문 워크북'?'워본':(TYPE_FAMS.find(([t])=>
 function seriesFams(sr){
   return sr.items.some(i=>i.type==='본문 워크북') ? [['본문 워크북','워본']] : TYPE_FAMS;
 }
+// 과 번호 표기 — «3과»·«3강», RP 는 «Unit 03» (2026-11-11)
+const chTxt=(c,unit)=>unit==='Unit'?`Unit ${String(c).padStart(2,'0')}`:`${c}${unit}`;
 function buildSeries(items){
   const sm=new Map();
   items.forEach(it=>{
@@ -1804,7 +1812,7 @@ function buildSeries(items){
     sr.rev+=it.rev; sr.items.push(it);
     const c=+it.chapter||0; if(c>sr.chMax) sr.chMax=c;
     if(c&&it.chLabel) sr.chLabels[c]=it.chLabel;
-    if(it.chUnit==='강') sr.unit='강';
+    if(it.chUnit==='강'||it.chUnit==='Unit') sr.unit=it.chUnit;
   });
   return [...sm.values()].sort((a,b)=>b.rev-a.rev);
 }
@@ -1822,10 +1830,10 @@ function buildTargets(A){
   });
   const targets=[];
   series.filter(sr=>sr.rev>0).forEach(sr=>{
-    const chName=c=>sr.chLabels[c]||`${c}${sr.unit}`; // MT1 은 '13강' 이 아니라 'MT1' 로 적는다
+    const chName=c=>sr.chLabels[c]||chTxt(c,sr.unit); // MT1 은 '13강' 이 아니라 'MT1' 로 적는다
     const chList=arr=>{ // 1·2·3과 / 12강·MT1·MT2 — 이름 강이 섞이면 하나씩 단위를 붙인다
       const nums=arr.filter(c=>!sr.chLabels[c]), labs=arr.filter(c=>sr.chLabels[c]).map(c=>sr.chLabels[c]);
-      return [nums.length?nums.join('·')+sr.unit:'',...labs].filter(Boolean).join('·');
+      return [nums.length?(sr.unit==='Unit'?'Unit '+nums.map(c=>String(c).padStart(2,'0')).join('·'):nums.join('·')+sr.unit):'',...labs].filter(Boolean).join('·');
     };
     // 빈칸이 같은 유형끼리 한 줄로 묶는다 — 1·2·6·7강이 3종 다 없으면 세 줄이 아니라 한 줄
     const gaps=new Map(); // 빈칸 서명 → {types, have, soldSame}
@@ -1863,7 +1871,7 @@ function buildTargets(A){
         reason:`${chName(sr.chMax)} 미만까지 구매한 고객 ${cand}명 · 다음 ${sr.unit} 노출·알림 우선`});
     }
     if(sr.items.length>0 && sr.items.every(i=>i.rev>0) && sr.chMax>0 && !sr.chLabels[sr.chMax]){ // MT3 뒤엔 다음 강이 없다
-      targets.push({score:sr.rev*0.8, title:`${sr.key} ${sr.chMax+1}${sr.unit} 이후 확장`,
+      targets.push({score:sr.rev*0.8, title:`${sr.key} ${chTxt(sr.chMax+1,sr.unit)} 이후 확장`,
         reason:`등록 자료 전량 판매(전환 100%) — 라인 확장 여력`});
     }
   });
@@ -2029,7 +2037,7 @@ function renderSettle(A){
 }
 // 커버리지 매트릭스 — 2026-11-11 사용자 «랭킹/공략지점이 아니라 롱테일 탭에» 로 롱테일·만료 탭으로 옮겼다(공략 지점 카드는 랭킹 탭에 남는다)
 function renderMatrix(items){
-  // 커버리지 매트릭스 — 과·강이 있는 시리즈는 «유형 = 줄, 과 = 칸» 의 히트맵, 없는 시리즈(모의고사·RP 단원)는 아래 칩 목록.
+  // 커버리지 매트릭스 — 과·강이 있는 시리즈는 «유형 = 줄, 과 = 칸» 의 히트맵, 없는 시리즈(모의고사)는 아래 칩 목록.
   // 2026-10-27 사용자 «옆으로 너무 넘어가야 해서»: 전에는 칸마다 분·워·변·파 글자 배지 4개를 찍어 22칸 × 약 130px = 표 3,000px(화면 3배)였다.
   // 유형 글자를 줄 머리에 한 번만 적고 칸은 20px 색 블록으로 줄였다 — 같은 유형이 가로 띠로 이어져 «어느 유형이 비었나» 가 바로 보인다.
   const series=buildSeries(items);
@@ -2065,7 +2073,7 @@ function renderMatrix(items){
       for(let c=1;c<=chAll;c++){
         if(c>sr.chMax){ mx+=`<td class="mxh-c"></td>`; continue; }
         const lab=sr.chLabels[c]; // MT1~3 처럼 번호 대신 이름으로 적힌 강
-        mx+=cell(sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c),tp,lab||c+sr.unit,fi>=base.length);
+        mx+=cell(sr.items.find(i=>i.type===tp&&(+i.chapter||0)===c),tp,lab||chTxt(c,sr.unit),fi>=base.length);
       }
       // SL 칸은 그 시리즈에 그 SL 이 하나라도 있을 때만 그린다 — 없는 시리즈는 빈 칸(제작 후보로 치지 않는다)
       slCols.forEach((c,k)=>{ const sl1=k===0?' mxh-sl':'';
@@ -2074,9 +2082,9 @@ function renderMatrix(items){
     });
   });
   mx+=`</tbody></table>`;
-  // 과·강 번호가 없는 자료(모의고사·RP 단원). 칸을 나눌 축이 없을 뿐 유형은 같으므로
+  // 과·강 번호가 없는 자료(모의고사). 칸을 나눌 축이 없을 뿐 유형은 같으므로
   // 한 줄에 분·워·변·파 순으로 찍고 없는 유형은 점선(제작 후보)으로 남긴다. 좁아서 두세 단으로 흘린다.
-  let fl=`<div class="mxt" style="margin:18px 0 6px">회차·단원 단위 (모의고사 · Reading Power) <span class="zero" style="font-weight:400">— 과·강 칸이 없어 한 줄에 유형만</span></div><div class="mxs">`;
+  let fl=`<div class="mxt" style="margin:18px 0 6px">회차 단위 (모의고사) <span class="zero" style="font-weight:400">— 과·강 칸이 없어 한 줄에 유형만</span></div><div class="mxs">`;
   flatSer.forEach(sr=>{
     let bs='';
     seriesFams(sr).forEach(([tp,sh])=>{
