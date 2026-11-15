@@ -435,6 +435,7 @@ function classify(name){
   const sig=sigOf(name);
   let type='기타';
   if(name.includes('분석자료')) type='분석자료';
+  else if(name.includes('어법실전')) type='어법실전';   // 2026-11-15 새 유형(모의고사 지문 어법 문제집) — 사용자 «새로운 유형으로 볼꺼야», 변형문제에 합치지 않는다
   else if(name.includes('변형문제')||sig==='킬러변형') type='변형문제';
   else if(name.includes('파이널')) type='파이널';
   else if(name.includes('본문 워크북')) type='본문 워크북';
@@ -467,7 +468,7 @@ function classify(name){
   if(cut>0) course=course.slice(0,cut);
   else if(chm){ const ci=course.indexOf(chm[0]); if(ci>0) course=course.slice(0,ci); }
   else if(slm){ const ci=course.indexOf(slm[1]); if(ci>0) course=course.slice(0,ci); }   // «… 기본 CR 01» → «… 기본» (교과서 SL 은 위 출판사 자르기에서 이미 떨어진다)
-  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널|킬러변형)/g,'').replace(/\(([^)]{2,})\)/g,'')   // 킬러변형도 유형 낱말처럼 떼어 «고2 2026 9월» 형제들과 같은 시리즈로 묶는다
+  course=course.replace(/(\d단\s*분석자료|분석자료|변형문제|본문 워크북|워크북|파이널|킬러변형|어법실전)/g,'').replace(/\(([^)]{2,})\)/g,'')   // 킬러변형도 유형 낱말처럼 떼어 «고2 2026 9월» 형제들과 같은 시리즈로 묶는다
     .replace(/(?:^|\s)(고[123]|중[123])(?=\s|$)/,'').trim()||'기타'; // 뒤에 붙은 학년은 시리즈 키 앞에 이미 있으니 뺀다
   return {grade,pub,type,sig,teacher,chapter,chUnit,chLabel,chCode,sl,course,category};
 }
@@ -1087,7 +1088,7 @@ const MIX_TYPE=t=>t==='본문 워크북'?'워크북':(t||'기타');   // 중학 
 // sub: 툴팁에 한 단계 더 쪼갠 내역을 붙인다(학년 → 고1·고2·학년 무관, 유형 → 원래 표기, 구분 → 출판사·교재)
 const MIX_DIMS=[
   {k:'type', title:'자료 유형', of:it=>MIX_TYPE(it.type), sub:it=>it.sig||it.type,   // 시그니처(킬러변형)는 변형문제에 합치되 툴팁 내역엔 제 이름으로
-   order:[['분석자료','var(--s5)'],['워크북','var(--s1)'],['변형문제','var(--s3)'],['파이널','var(--s4)'],['기타','var(--baseline)']]},
+   order:[['분석자료','var(--s5)'],['워크북','var(--s1)'],['변형문제','var(--s3)'],['파이널','var(--s4)'],['어법실전','var(--s7)'],['기타','var(--baseline)']]},
   {k:'cat', title:'구분', of:it=>it.category, sub:it=>it.pub!=='기타'?it.pub:it.course,
    order:[['교과서','var(--s1)'],['수능/모의고사','var(--s2)'],['부교재','var(--s3)']]},
   {k:'lvl', title:'학년', of:it=>MIX_LEVEL(it.grade), sub:it=>it.grade==='고등'?'학년 무관':it.grade,
@@ -1797,7 +1798,7 @@ function renderRank(A){
 // 자료 유형 4종과 매트릭스 약자. 본문 워크북도 워크북이므로 '워본'(그냥 '본'이면 다른 갈래로 읽힌다). 파이널은 2026-09-20 추가.
 const TYPE_FAMS=[['분석자료','분'],['워크북','워'],['변형문제','변'],['파이널','파']];
 // 시리즈가 갖춰야 할 유형 목록 — 고등(교과서·부교재·모의고사)은 4종 전부, 중학 라인은 본문 워크북 하나.
-const TYPE_SHORT_OF=tp=>tp==='본문 워크북'?'워본':(TYPE_FAMS.find(([t])=>t===tp)||[,'·'])[1];
+const TYPE_SHORT_OF=tp=>tp==='본문 워크북'?'워본':tp==='어법실전'?'어':(TYPE_FAMS.find(([t])=>t===tp)||[,'·'])[1];   // 어법실전(2026-11-15)은 기본 4종 밖 — 빈칸을 제작 후보로 치지 않는다
 function seriesFams(sr){
   return sr.items.some(i=>i.type==='본문 워크북') ? [['본문 워크북','워본']] : TYPE_FAMS;
 }
@@ -2092,6 +2093,8 @@ function renderMatrix(items){
       bs+=it?badge(it,sh):missBadge(sr,tp,sh,'');
     });
     sr.items.filter(i=>i.sig).forEach(it=>{ bs+=badge(it,(SIGNATURES.find(s=>s.key===it.sig)||{short:'시'}).short); });
+    // 기본 유형 밖의 유형(어법실전 2026-11-15)은 있을 때만 뒤에 찍는다 — 없다고 점선(제작 후보)으로 치지 않는다
+    sr.items.filter(i=>!i.sig&&i.type!=='기타'&&!seriesFams(sr).some(([t])=>t===i.type)).forEach(it=>{ bs+=badge(it,TYPE_SHORT_OF(it.type)); });
     fl+=`<div class="mxs-row"><span class="mxs-nm">${esc(sr.key)}${catChip(sr)}</span><span class="mxs-rev">${revTxt(sr)}</span><span class="mxs-b">${bs}</span></div>`;
   });
   fl+=`</div>`;
