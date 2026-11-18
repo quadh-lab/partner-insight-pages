@@ -234,6 +234,10 @@ td .sub{color:var(--muted); font-size:12.5px; margin-top:1px}
 .dstrip{display:grid; grid-template-columns:repeat(auto-fit,minmax(70px,1fr)); gap:6px; margin:10px 0 4px}
 .dcell{border:1px solid var(--line); border-radius:8px; padding:6px 8px 7px; cursor:default}
 .dcell.today{border-color:var(--accent)}
+/* 하루 칸 = 버튼 (2026-11-19 사용자 «버튼을 누르면 그날 최종결과가 보이도록») — 고른 날은 배경을 깔고 테두리를 굵게 */
+.dcell[data-i]{cursor:pointer}
+.dcell[data-i]:hover{border-color:var(--accent)}
+.dcell.sel{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); background:color-mix(in srgb, var(--accent) 9%, transparent)}
 .dcell .dd{font-size:11.5px; color:var(--muted)}
 .dcell .dnum{font-size:19px; font-weight:700; line-height:1.25; font-variant-numeric:tabular-nums}
 .dcell .dnum small{font-size:11px; font-weight:500; color:var(--muted); margin-left:1px}
@@ -1238,10 +1242,10 @@ function dailySales(A, n=7){
   }
   return {days:out.reverse(), mark};
 }
-function dailyStripHTML(D){
+function dailyStripHTML(D, sel){
   if(!D.days.length) return '';
   const today=todaySeoul();
-  return `<div class="mxt" style="margin-top:12px">최근 ${D.days.length}일 하루 판매 <span class="zero" style="font-weight:400">— 확정 = 정산 기준(분 단위로 자름) · 잠정 = 마지막 수집끼리의 차이</span></div>
+  return `<div class="mxt" style="margin-top:12px">최근 ${D.days.length}일 하루 판매 <span class="zero" style="font-weight:400">— 확정 = 정산 기준(분 단위로 자름) · 잠정 = 마지막 수집끼리의 차이 · 날짜를 누르면 그날 결과</span></div>
     <div class="dstrip">${D.days.map((d,i)=>{
       const isToday=d.date===today;
       const late=!d.settled&&!isToday&&!!d.closeAt&&d.closeAt<CLOSE_OK;   // 시각 기록이 없는 옛 스냅샷(2026-09-26 이전)은 경고하지 않는다
@@ -1249,7 +1253,7 @@ function dailyStripHTML(D){
         :isToday?`<span class="chip acc">진행 중${(()=>{ const t=checkedHM(d.date,d.closeAt); return t?' · '+t:''; })()}</span>`
         :late?`<span class="chip warn">잠정 · 마감 ${d.closeAt}</span>`
         :`<span class="chip">잠정</span>`;
-      return `<div class="dcell${isToday?' today':''}" data-i="${i}"><div class="dd">${md(d.date)} (${DOW[new Date(d.date).getDay()]})</div>
+      return `<div class="dcell${isToday?' today':''}${d.date===sel?' sel':''}" data-i="${i}" role="button" tabindex="0"><div class="dd">${md(d.date)} (${DOW[new Date(d.date).getDay()]})</div>
         <div class="dnum">${d.value}<small>개</small></div><div class="damt">${won(d.amount)}</div>${chip}</div>`;
     }).join('')}</div>`;
 }
@@ -1267,7 +1271,26 @@ function dailyStripTips(p, D){
       `</div>`);
   });
 }
-function renderDelta(A){
+/* 하루 칸을 누르면 그날 마지막 스냅샷 − 전날 마지막 스냅샷으로 변동 탭 본문(구성 요약·시리즈 표)을 다시 그린다 (2026-11-19 사용자).
+   DELTA_SEL=null 이면 최신(지금까지와 같음). 칸 띠(dailySales)는 늘 전체 A 로 그린다. */
+let DELTA_SEL=null, DELTA_A=null, DELTA_SIG='';
+function dayView(A, date){
+  const i=A.snaps.findIndex(s=>s.date===date);
+  if(i<1||i===A.snaps.length-1) return A;
+  const latest=A.snaps[i], prev=A.snaps[i-1], pm=itemMap(prev), lm=itemMap(latest);
+  const deltas=latest.items.map(it=>{ const p=pm.get(it.id);
+    return {it, dRev:it.rev-(p?p.rev:0), dBuy:it.buyers-(p?p.buyers:0), isNew:!p, statusChanged:p&&p.status!==it.status?p.status:null}; });
+  return {...A, snaps:A.snaps.slice(0,i+1), latest, prev, deltas, removed:prev.items.filter(it=>!lm.has(it.id))};
+}
+function renderDelta(A0){
+  DELTA_A=A0;
+  // 탭 전환도 renderAll 을 부르므로 고른 날은 유지하되, 데이터가 바뀌면(자동 갱신·붙여넣기·업로드) 최신으로 되돌린다
+  const sig=[A0.snaps.length, A0.latest.date, A0.latest.at||'', A0.txns.length].join('|');
+  if(sig!==DELTA_SIG){ DELTA_SIG=sig; DELTA_SEL=null; }
+  const daily=A0.prev?dailySales(A0):{days:[]};
+  if(DELTA_SEL&&!daily.days.some(d=>d.date===DELTA_SEL)) DELTA_SEL=null;   // 새 데이터에서 띠 밖으로 밀려난 날이면 최신으로
+  const A=DELTA_SEL?dayView(A0,DELTA_SEL):A0;
+  const selDay=daily.days.find(d=>d.date===A.latest.date);
   const p=$('#p-delta');
   if(!A.prev){
     p.innerHTML=`<div class="card"><h2>아직 비교할 이전 스냅샷이 없어요</h2>
@@ -1287,13 +1310,13 @@ function renderDelta(A){
     cancelled>0?`결제 후 취소 ${cancelled}건은 +1 −1 로 상쇄해 갯수에 넣지 않았습니다`:null,
     A.removed.length?`목록에서 빠진 자료 ${A.removed.length}개`:null,
     gap===1&&A.prev.at&&A.prev.at.slice(11,16)<CLOSE_OK?`전날 마지막 수집이 ${A.prev.at.slice(11,16)} 이라 그 뒤 판매가 이 날에 들어 있습니다`:null,
+    DELTA_SEL&&selDay&&selDay.settled&&selDay.settle!==selDay.snap?`아래 표는 수집 차이 ${selDay.snap}개 기준 — 정산 확정은 ${selDay.settle}개 (컷오프·취소 차이)`:null,
   ].filter(Boolean);
-  const daily=dailySales(A);
   let html=`<div class="card">
     <h2>${A.latest.date} <span class="zero">(${ago===0?'오늘':ago===1?'어제':ago+'일 전'})</span></h2>
     ${caveats.length?`<p class="desc">${caveats.join(' · ')}</p>`:''}
     ${A.latest.items.length<A.prev.items.length?`<p class="desc" style="color:var(--warn)">⚠ 자료 수가 ${A.prev.items.length}개 → ${A.latest.items.length}개로 줄었습니다. 일부 페이지만 붙여넣었을 수 있으니, 모든 페이지를 이어서 붙여넣은 뒤 다시 확인하세요 — 이 상태의 변동 수치는 신뢰가 낮습니다.</p>`:''}`;
-  html+=dailyStripHTML(daily);
+  html+=dailyStripHTML(daily, A.latest.date);
   const mix=deltaMix(A);
   if(mix) html+=mix.html;
   if(changed.length){
@@ -1345,6 +1368,11 @@ function renderDelta(A){
   }
   p.innerHTML=html;
   dailyStripTips(p, daily);
+  p.querySelectorAll('.dcell[data-i]').forEach(c=>{
+    const go=()=>{ const d=daily.days[+c.dataset.i].date; DELTA_SEL=d===A0.latest.date?null:d; renderDelta(DELTA_A); };
+    c.addEventListener('click',go);
+    c.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } });
+  });
   if(mix) mix.dims.forEach(d=>countBars($('#mx-'+d.k), d.rows, mix.scale));
   // 시리즈 묶음 펼치기/접기
   const tbl=p.querySelector('table.dg');
