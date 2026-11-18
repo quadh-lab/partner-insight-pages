@@ -930,6 +930,8 @@ function canonTxnNames(){
   if(!ren.size) return;
   state.txns.forEach(t=>{ const n=t.nameRaw||t.name; if(ren.has(n)){ t.nameRaw=n; t.name=ren.get(n); } });
 }
+// 증감 문구의 비교 기준 — 직전 스냅샷이 전날이면 «전일대비», 수집이 빠졌으면 «MM.DD 대비»(2026-11-18 사용자 «전일대비로 다» + 패널: 건너뛴 날 틀린 말이 되지 않게)
+function cmpWord(A){ return !A.prev?'':daysBetween(A.prev.date, A.latest.date)===1?'전일대비':`${md(A.prev.date)} 대비`; }
 function computeAll(){
   sortSnaps(); sortTxns(); canonTxnNames(); adjustSnaps();
   const snaps=state.snaps;
@@ -1057,7 +1059,8 @@ function computeAll(){
   const subs=withSubs.length?withSubs[withSubs.length-1].subs:null;
   const subsPrevSnap=withSubs.length>1?withSubs[withSubs.length-2]:null;
   const subsPrev=subsPrevSnap?subsPrevSnap.subs:null, subsPrevDate=subsPrevSnap?subsPrevSnap.date:null;
-  return {snaps,latest,prev,tl,tp,deltas,removed,momentum,txns,T,covDays,monthly,opt,disc:{n:discN,sum:discSum},custs,segOf,orders,subs,subsPrev,subsPrevDate,excl:excludedTxns()};
+  const subsDate=withSubs.length?withSubs[withSubs.length-1].date:null;   // 구독자 값이 실린 마지막 날 — «전일대비» 판정의 기준(최신 스냅샷에 subs 가 빠질 수 있다)
+  return {snaps,latest,prev,tl,tp,deltas,removed,momentum,txns,T,covDays,monthly,opt,disc:{n:discN,sum:discSum},custs,segOf,orders,subs,subsPrev,subsPrevDate,subsDate,excl:excludedTxns()};
 }
 function groupBy(items, key){
   const m=new Map();
@@ -1086,8 +1089,8 @@ function renderKpis(A){
   const dBuy=tp? tl.buyers-tp.buyers : null;
   const conv=tl.n? Math.round(tl.sold/tl.n*100) : 0;
   const kp=[
-    {lb:'누적 거래액', v:wonT(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`전일대비 ▲ ${won(dRev)}`:dRev<0?`전일대비 ▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:'전일대비 변동 없음')   /* 2026-11-18 사용자 «전 스냅샷 대비 → 전일대비»(스냅샷은 날짜당 1장이라 직전 스냅샷 = 전날 마감) */, up:dRev>0, down:dRev<0},
-    {lb:'누적 구매 갯수', v:tl.buyers+'<small>개</small>', d: dBuy===null?'무엇이 팔렸나 (자료 수량)':(dBuy>0?`전일대비 ▲ ${dBuy}개`:dBuy<0?`전일대비 ▼ ${-dBuy}개`:'전일대비 변동 없음'), up:dBuy>0, down:dBuy<0},
+    {lb:'누적 거래액', v:wonT(tl.rev), d: dRev===null?'다음 수집부터 증감 표시':(dRev>0?`${cmpWord(A)} ▲ ${won(dRev)}`:dRev<0?`${cmpWord(A)} ▼ ${won(-dRev)} — 감소·부분 붙여넣기 확인`:`${cmpWord(A)} 변동 없음`)   /* 2026-11-18 사용자 «전 스냅샷 대비 → 전일대비»(스냅샷은 날짜당 1장이라 직전 스냅샷 = 전날 마감) */, up:dRev>0, down:dRev<0},
+    {lb:'누적 구매 갯수', v:tl.buyers+'<small>개</small>', d: dBuy===null?'무엇이 팔렸나 (자료 수량)':(dBuy>0?`${cmpWord(A)} ▲ ${dBuy}개`:dBuy<0?`${cmpWord(A)} ▼ ${-dBuy}개`:`${cmpWord(A)} 변동 없음`), up:dBuy>0, down:dBuy<0},
     // 2026-11-18 사용자: 선생님 수 대신 증가 인원 + 넷째 줄에 재방문 인원·증감. 정산은 1~3일 늦게 오므로 «마지막 정산일» 기준으로 센다
     // 11-18 같은 날 문구 확정(사용자 «무슨 날짜 기준이고 언제 대비인지 헷갈려»): 기준일은 라벨에, 증감은 «전일대비»(= 그 전 정산일까지 누적과 비교)
     // 타일 폭 173px 에서 접히지 않게(QA 실측 121→161px): 날짜는 작은 글씨, 넷째 줄은 «재방문 R명 · ▲ M명»(전일대비는 셋째 줄이 대표) — 사용자 선택
@@ -1100,7 +1103,12 @@ function renderKpis(A){
       return `전일대비 ${g(nNew)}<br>재방문 ${rep.length}명 · ${g(nRep)}`;
     })():'정산 엑셀을 올리면 표시됩니다'},
     {lb:'누적 결제 건수 (정산)', v:A.T.n?A.orders.length+'<small>건</small>':'—', d:A.T.n?`결제당 ${(A.T.n/A.orders.length).toFixed(1)}개<br>객단가 ${won(Math.round(A.T.amount/A.orders.length))}`:'지갑이 몇 번 열렸나 (주문 단위)'},
-    {lb:'채널 구독자', v:A.subs!==null?A.subs+'<small>명</small>':'—', d:A.subs===null?'파트너센터 갱신(collect.py)이 채널 페이지에서 읽어 옵니다':(A.subsPrev===null?`다음 수집부터 증감 표시`:(A.subs-A.subsPrev>0?`▲ ${A.subs-A.subsPrev}명 (${md(A.subsPrevDate)} 대비)`:A.subs-A.subsPrev<0?`▼ ${A.subsPrev-A.subs}명 (${md(A.subsPrevDate)} 대비)`:`변동 없음 (${md(A.subsPrevDate)} 대비)`)), up:A.subsPrev!==null&&A.subs>A.subsPrev, down:A.subsPrev!==null&&A.subs<A.subsPrev},
+    {lb:'채널 구독자', v:A.subs!==null?A.subs+'<small>명</small>':'—', d:A.subs===null?'파트너센터 갱신(collect.py)이 채널 페이지에서 읽어 옵니다':(A.subsPrev===null?`다음 수집부터 증감 표시`:(()=>{
+      // 2026-11-18 사용자 «다 바꿔, 전일대비로 다»: 비교 날짜가 전날이면 «전일대비 ▲ N명», 아니면(구독자는 수집 간격이 들쭉날쭉) 날짜를 그대로 적는다
+      const yd=daysBetween(A.subsPrevDate, A.subsDate)===1;
+      const f=s=>yd?`전일대비 ${s}`:`${md(A.subsPrevDate)} 대비 ${s}`;   // 다른 칸과 같은 꼴(«MM.DD 대비 ▲ N명»)
+      return A.subs-A.subsPrev>0?f(`▲ ${A.subs-A.subsPrev}명`):A.subs-A.subsPrev<0?f(`▼ ${A.subsPrev-A.subs}명`):f('변동 없음');
+    })()), up:A.subsPrev!==null&&A.subs>A.subsPrev, down:A.subsPrev!==null&&A.subs<A.subsPrev},
     {lb:'등록 자료', v:(A.latest.declared&&A.latest.declared>tl.n)?`${tl.n}<small> / ${A.latest.declared}개</small>`:tl.n+'<small>개</small>', d:(A.latest.declared&&A.latest.declared>tl.n)?`⚠ ${A.latest.declared-tl.n}개 미수집 — 나머지 페이지를 붙여넣으세요`:`판매된 자료 ${tl.sold}개 (${conv}%)<br>판매중단 ${A.latest.items.filter(i=>/판매중단$/.test(i.status)).length}개`, down:!!(A.latest.declared&&A.latest.declared>tl.n)},
   ];
   $('#kpis').innerHTML=kp.map(k=>`
@@ -1444,15 +1452,15 @@ function renderSig(A){
       <h2>${esc(S.key)} <span class="chip acc">변형문제 계열</span> <span class="zero" style="font-weight:400">· 상품 ${items.length}개 · 등록 ${launch} (${days}일째)</span></h2>
       <p class="desc">${esc(S.desc)} — 유형 집계에서는 변형문제에 들어 있고, 판매는 여기서 따로 봅니다. ${lag}</p>
       <div class="kpis" style="margin:0 0 14px">
-        <div class="tile"><div class="lb">누적 거래액</div><div class="v">${wonT(rev)}</div><div class="d ${dRev===null?'':cls(dRev)}">${dRev===null?'다음 수집부터 증감 표시':'전일대비 '+sgn(dRev,won)}</div></div>
-        <div class="tile"><div class="lb">누적 구매 갯수</div><div class="v">${buyers}<small>개</small></div><div class="d ${dBuy===null?'':cls(dBuy)}">${dBuy===null?'실시간 수집 기준':'전일대비 '+sgn(dBuy,v=>v+'개')}</div></div>
+        <div class="tile"><div class="lb">누적 거래액</div><div class="v">${wonT(rev)}</div><div class="d ${dRev===null?'':cls(dRev)}">${dRev===null?'다음 수집부터 증감 표시':cmpWord(A)+' '+sgn(dRev,won)}</div></div>
+        <div class="tile"><div class="lb">누적 구매 갯수</div><div class="v">${buyers}<small>개</small></div><div class="d ${dBuy===null?'':cls(dBuy)}">${dBuy===null?'실시간 수집 기준':cmpWord(A)+' '+sgn(dBuy,v=>v+'개')}</div></div>
         <div class="tile"><div class="lb">정산 확정 구매</div><div class="v">${tx.length}<small>개</small></div><div class="d">${tx.length?`정산액 ${won(net)} · 결제 ${won(amount)}`:'정산 내역에 아직 없음'}</div></div>
         <div class="tile"><div class="lb">대여 / 소장</div><div class="v">${rent}<small>대여</small> <span class="vsep">·</span> ${own}<small>소장</small></div><div class="d">정산 기준 · 소장 비율 ${tx.length?Math.round(own/tx.length*100):0}%</div></div>
         <div class="tile"><div class="lb">구매자</div><div class="v">${custs.length}<small>명</small></div><div class="d">${custs.length?`선생님 ${teachers}명 · 학생 ${custs.length-teachers}명 · 다른 자료도 산 사람 ${coCust}명`:'정산 내역 기준'}</div></div>
         <div class="tile"><div class="lb">등록 후 전체 판매 중</div><div class="v">${share===null?'—':share+'<small>%</small>'}</div><div class="d">${share===null?'등록 후 정산이 들어오면 표시':`등록 후 정산 구매 ${since.length}개 중 ${tx.length}개 · 금액 비중 ${shareAmt}%`}</div></div>
       </div>
       <div class="tblwrap"><table>
-        <thead><tr><th>상품</th><th>추세</th><th class="num">최근 7일 / 이전 7일</th><th class="num">전일대비</th><th class="num">누적 구매</th><th class="num">누적 거래액</th><th class="num">정산 구매</th><th class="num">정산액</th></tr></thead>
+        <thead><tr><th>상품</th><th>추세</th><th class="num">최근 7일 / 이전 7일</th><th class="num">${esc(cmpWord(A)||'전일대비')}</th><th class="num">누적 구매</th><th class="num">누적 거래액</th><th class="num">정산 구매</th><th class="num">정산액</th></tr></thead>
         <tbody>${rows.map(r=>`<tr>
           <td><div class="nm" style="white-space:nowrap">${esc(shortName(r.it))} ${/판매중단$/.test(r.it.status)?`<span class="chip warn">${esc(r.it.status)}</span>`:`<span class="chip good">${esc(r.it.status)}</span>`}</div>
               <div class="sub">${esc(r.it.grade)} · ${esc(r.it.category)} · ${esc(r.it.type)} · 대여 ${won(r.it.rent)} / 소장 ${won(r.it.own)}</div></td>
@@ -1503,8 +1511,10 @@ function buildInsights(A){
   if(tp){
     const dRev=tl.rev-tp.rev;
     const top=deltas.filter(d=>d.dRev>0).sort((a,b)=>b.dRev-a.dRev)[0];
-    if(dRev>0&&top) add('change',`전 스냅샷 대비 매출이 <b>+${won(dRev)}</b> 늘었습니다 — 그중 <b>${esc(shortName(top.it))}</b>이 +${won(top.dRev)}로 가장 컸습니다.`);
-    else if(dRev===0) add('change',`전 스냅샷 이후 새 판매가 없습니다.`);
+    // 직전 스냅샷이 전날일 때만 «전일대비» — 수집이 빠졌으면 그 날짜를 적는다(구독자 칸과 같은 기준, 2026-11-18 패널)
+    const cmp=cmpWord(A);
+    if(dRev>0&&top) add('change',`${cmp} 매출이 <b>+${won(dRev)}</b> 늘었습니다 — 그중 <b>${esc(shortName(top.it))}</b>이 +${won(top.dRev)}로 가장 컸습니다.`);
+    else if(dRev===0) add('change',`${cmp} 새 판매가 없습니다.`);
   }
   if(txns.length){
     // 요일/시간 피크
