@@ -1444,15 +1444,15 @@ function renderSig(A){
       <h2>${esc(S.key)} <span class="chip acc">변형문제 계열</span> <span class="zero" style="font-weight:400">· 상품 ${items.length}개 · 등록 ${launch} (${days}일째)</span></h2>
       <p class="desc">${esc(S.desc)} — 유형 집계에서는 변형문제에 들어 있고, 판매는 여기서 따로 봅니다. ${lag}</p>
       <div class="kpis" style="margin:0 0 14px">
-        <div class="tile"><div class="lb">누적 거래액</div><div class="v">${wonT(rev)}</div><div class="d ${dRev===null?'':cls(dRev)}">${dRev===null?'다음 수집부터 증감 표시':sgn(dRev,won)+' (전 스냅샷 대비)'}</div></div>
-        <div class="tile"><div class="lb">누적 구매 갯수</div><div class="v">${buyers}<small>개</small></div><div class="d ${dBuy===null?'':cls(dBuy)}">${dBuy===null?'실시간 수집 기준':sgn(dBuy,v=>v+'개')+' (전 스냅샷 대비)'}</div></div>
+        <div class="tile"><div class="lb">누적 거래액</div><div class="v">${wonT(rev)}</div><div class="d ${dRev===null?'':cls(dRev)}">${dRev===null?'다음 수집부터 증감 표시':'전일대비 '+sgn(dRev,won)}</div></div>
+        <div class="tile"><div class="lb">누적 구매 갯수</div><div class="v">${buyers}<small>개</small></div><div class="d ${dBuy===null?'':cls(dBuy)}">${dBuy===null?'실시간 수집 기준':'전일대비 '+sgn(dBuy,v=>v+'개')}</div></div>
         <div class="tile"><div class="lb">정산 확정 구매</div><div class="v">${tx.length}<small>개</small></div><div class="d">${tx.length?`정산액 ${won(net)} · 결제 ${won(amount)}`:'정산 내역에 아직 없음'}</div></div>
         <div class="tile"><div class="lb">대여 / 소장</div><div class="v">${rent}<small>대여</small> <span class="vsep">·</span> ${own}<small>소장</small></div><div class="d">정산 기준 · 소장 비율 ${tx.length?Math.round(own/tx.length*100):0}%</div></div>
         <div class="tile"><div class="lb">구매자</div><div class="v">${custs.length}<small>명</small></div><div class="d">${custs.length?`선생님 ${teachers}명 · 학생 ${custs.length-teachers}명 · 다른 자료도 산 사람 ${coCust}명`:'정산 내역 기준'}</div></div>
         <div class="tile"><div class="lb">등록 후 전체 판매 중</div><div class="v">${share===null?'—':share+'<small>%</small>'}</div><div class="d">${share===null?'등록 후 정산이 들어오면 표시':`등록 후 정산 구매 ${since.length}개 중 ${tx.length}개 · 금액 비중 ${shareAmt}%`}</div></div>
       </div>
       <div class="tblwrap"><table>
-        <thead><tr><th>상품</th><th>추세</th><th class="num">최근 7일 / 이전 7일</th><th class="num">전 스냅샷 대비</th><th class="num">누적 구매</th><th class="num">누적 거래액</th><th class="num">정산 구매</th><th class="num">정산액</th></tr></thead>
+        <thead><tr><th>상품</th><th>추세</th><th class="num">최근 7일 / 이전 7일</th><th class="num">전일대비</th><th class="num">누적 구매</th><th class="num">누적 거래액</th><th class="num">정산 구매</th><th class="num">정산액</th></tr></thead>
         <tbody>${rows.map(r=>`<tr>
           <td><div class="nm" style="white-space:nowrap">${esc(shortName(r.it))} ${/판매중단$/.test(r.it.status)?`<span class="chip warn">${esc(r.it.status)}</span>`:`<span class="chip good">${esc(r.it.status)}</span>`}</div>
               <div class="sub">${esc(r.it.grade)} · ${esc(r.it.category)} · ${esc(r.it.type)} · 대여 ${won(r.it.rent)} / 소장 ${won(r.it.own)}</div></td>
