@@ -2071,7 +2071,7 @@ function renderSettle(A){
       <div class="tile"><div class="lb">누적 정산 수익</div><div class="v">${wonT(A.T.net)}</div><div class="d">정산액(수익) 합계 · 구매 ${A.T.n}개 / 결제 ${A.orders.length}건</div></div>
       <div class="tile"><div class="lb">이번 달 정산 수익</div><div class="v">${wonT(cm?cm.net:0)}</div><div class="d">${+nowM.slice(5)}월 결제 ${cm?(cm.orders||0):0}건 · 구매 ${cm?cm.n:0}개</div></div>
       <div class="tile"><div class="lb">정산 반영 거래액</div><div class="v">${wonT(A.T.amount)}</div><div class="d">${A.T.first.slice(0,10)} ~ ${A.T.last.slice(0,10)}</div></div>
-      <div class="tile"><div class="lb">누적 결제수수료</div><div class="v">${wonT(A.T.fee)}</div><div class="d">거래액의 ${A.T.amount?(A.T.fee/A.T.amount*100).toFixed(1):0}%</div></div>
+      <div class="tile"><div class="lb">이번 달 거래액</div><div class="v">${wonT(cm?cm.amount:0)}</div><div class="d">${cm?`${md(nowM+'-01')} ~ ${md(A.T.last.slice(0,10))} 정산 반영분`:`${+nowM.slice(5)}월 정산 반영분 아직 없음`}</div></div>
     </div>
     <div class="grid2">
       <div class="card"><h2>월별 정산 수익</h2><p class="desc">정산은 월 단위 지급 — 거래일 기준 월 합계 (이번 달은 확정 전 거래가 더 붙을 수 있음)</p><div class="chart" id="chMonth"></div></div>
